@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>My GitHub Pages HTML Files</title>
+</head>
+<body>
+  <h1>HTML Files in My GitHub Repos</h1>
+  <ul id="fileList"></ul>
+
+  <script>
+    const username = 'sportomax1'; // ✅ your GitHub username
+    const fileList = document.getElementById('fileList');
+
+    async function fetchRepos() {
+      const res = await fetch(`https://api.github.com/users/${username}/repos`);
+      return res.json();
+    }
+
+    async function fetchFiles(repo, path = '') {
+      const res = await fetch(`https://api.github.com/repos/${username}/${repo}/contents/${path}`);
+      return res.json();
+    }
+
+    async function scanFiles(repo, path = '') {
+      const items = await fetchFiles(repo, path);
+      let htmlFiles = [];
+
+      for (const item of items) {
+        if (item.type === 'dir') {
+          const nestedFiles = await scanFiles(repo, item.path);
+          htmlFiles = htmlFiles.concat(nestedFiles);
+        } else if (item.type === 'file' && item.name.endsWith('.html')) {
+          // ✅ Keep subfolder structure in URL
+          const pagesUrl = `https://${username}.github.io/${repo}/${item.path}`;
+          htmlFiles.push({ name: item.name, repo, url: pagesUrl });
+        }
+      }
+      return htmlFiles;
+    }
+
+    async function listHTMLFiles() {
+      const repos = await fetchRepos();
+
+      for (const repo of repos) {
+        try {
+          const htmlFiles = await scanFiles(repo.name);
+          htmlFiles.forEach(f => {
+            const li = document.createElement('li');
+            // ✅ Show full GitHub Pages URL
+            li.innerHTML = `<a href="${f.url}" target="_blank">${f.url}</a>`;
+            fileList.appendChild(li);
+          });
+        } catch (err) {
+          console.warn(`Could not read repo ${repo.name}:`, err);
+        }
+      }
+    }
+
+    listHTMLFiles();
+  </script>
+</body>
+</html>
