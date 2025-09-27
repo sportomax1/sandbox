@@ -1,0 +1,3 @@
+title: "Theme Demo"
+description: "Sample GitHub Pages site"
+theme: jekyll-theme-cayman   # 👈 we'll swap this line later
