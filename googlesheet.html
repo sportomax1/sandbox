@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Location Data Viewer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+```
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        padding: 20px;
+    }
+
+    .container {
+        max-width: 1400px;
+        margin: 0 auto;
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        overflow: hidden;
+    }
+
+    .header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 40px 30px;
+        text-align: center;
+    }
+
+    .header h1 {
+        font-size: 2.8em;
+        margin-bottom: 10px;
+        font-weight: 700;
+    }
+
+    .header p {
+        opacity: 0.95;
+        font-size: 1.15em;
+    }
+
+    .ready-badge {
+        display: inline-block;
+        background: #28a745;
+        color: white;
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-size: 0.9em;
+        font-weight: 600;
+        margin-top: 10px;
+    }
+
+    .controls {
+        padding: 25px 30px;
+        background: #f8f9fa;
+        border-bottom: 2px solid #e0e0e0;
+        display: flex;
+        gap: 15px;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    .view-toggle {
+        display: flex;
+        gap: 10px;
+        background: white;
+        padding: 5px;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .view-toggle button {
+        padding: 10px 20px;
+        background: transparent;
+        color: #666;
+        border: none;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+
+    .view-toggle button.active {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+    }
+
+    .view-toggle button:hover:not(.active) {
+        background: #f0f0f0;
+    }
+
+    .links {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    .links a {
+        padding: 10px 20px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        text-decoration: none;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 600;
+        transition: all 0.3s;
+        box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+    }
+
+    .links a:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.5);
+    }
+
+    .content {
+        padding: 0;
+        min-height: 600px;
+    }
+
+    .iframe-container {
+        width: 100%;
+        height: 700px;
+        border: none;
+        background: white;
+    }
+
+    iframe {
+        width: 100%;
+        height: 100%;
+        border: none;
+    }
+
+    .info-box {
+        padding: 30px;
+        background: #e3f2fd;
+        border-left: 5px solid #2196f3;
+        margin: 30px;
+        border-radius: 8px;
+    }
+
+    .info-box h3 {
+        color: #1565c0;
+        margin-bottom: 15px;
+        font-size: 1.3em;
+    }
+
+    .info-box p {
+        color: #0d47a1;
+        line-height: 1.8;
+        margin-bottom: 10px;
+    }
+
+    .info-box ul {
+        margin-left: 20px;
+        color: #0d47a1;
+    }
+
+    .info-box li {
+        margin: 8px 0;
+        line-height: 1.6;
+    }
+
+    .info-box code {
+        background: #bbdefb;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-family: 'Courier New', monospace;
+        font-size: 0.9em;
+    }
+
+    @media (max-width: 768px) {
+        .header h1 {
+            font-size: 2em;
+        }
+
+        .controls {
+            flex-direction: column;
+        }
+
+        .view-toggle, .links {
+            width: 100%;
+        }
+
+        .iframe-container {
+            height: 500px;
+        }
+    }
+</style>
+```
+
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📍 Location Data Viewer</h1>
+            <p>Your Google Sheet - Live View</p>
+            <span class="ready-badge">✓ Direct Embed</span>
+        </div>
+
+```
+    <div class="controls">
+        <div class="view-toggle">
+            <button class="active" onclick="showEmbed()">📊 Sheet View</button>
+            <button onclick="showInfo()">ℹ️ Information</button>
+        </div>
+        <div class="links">
+            <a href="https://docs.google.com/spreadsheets/d/e/2PACX-1vSlVJNYUaEcY1as9YcKPu18BaceP9vQvg1vxg3KD_Z1WOsv9lL5OOnHIqJ_sY5yJOKLPcgEsSopQTc8/pubhtml" target="_blank">🔗 Open in New Tab</a>
+            <a href="https://docs.google.com/spreadsheets/d/e/2PACX-1vSlVJNYUaEcY1as9YcKPu18BaceP9vQvg1vxg3KD_Z1WOsv9lL5OOnHIqJ_sY5yJOKLPcgEsSopQTc8/pub?output=csv" target="_blank">📥 Download CSV</a>
+        </div>
+    </div>
+
+    <div class="content">
+        <div id="embedView" class="iframe-container">
+            <iframe src="https://docs.google.com/spreadsheets/d/e/2PACX-1vSlVJNYUaEcY1as9YcKPu18BaceP9vQvg1vxg3KD_Z1WOsv9lL5OOnHIqJ_sY5yJOKLPcgEsSopQTc8/pubhtml?widget=true&headers=false"></iframe>
+        </div>
+
+        <div id="infoView" style="display: none;">
+            <div class="info-box">
+                <h3>📊 About This Viewer</h3>
+                <p>This page displays your Google Sheet data using a direct embed. The sheet is loaded directly from Google's servers, avoiding CORS restrictions.</p>
+                
+                <h3 style="margin-top: 25px;">✨ Features</h3>
+                <ul>
+                    <li><strong>Live Data:</strong> The sheet updates automatically when you refresh the page</li>
+                    <li><strong>Direct Access:</strong> No data parsing needed - Google renders it directly</li>
+                    <li><strong>Full Functionality:</strong> Scroll, view all columns and rows</li>
+                    <li><strong>Mobile Friendly:</strong> Works on all devices</li>
+                </ul>
+
+                <h3 style="margin-top: 25px;">🔗 Quick Actions</h3>
+                <ul>
+                    <li><strong>Open in New Tab:</strong> View the sheet in a separate window for better visibility</li>
+                    <li><strong>Download CSV:</strong> Export the data to work with it locally in Excel or other tools</li>
+                </ul>
+
+                <h3 style="margin-top: 25px;">🛠️ For Developers</h3>
+                <p>If you need to programmatically access this data:</p>
+                <ul>
+                    <li>Use the CSV export URL: <code>...pub?output=csv</code></li>
+                    <li>Access via server-side code (Node.js, Python, etc.) to avoid CORS</li>
+                    <li>Consider using Google Sheets API for more advanced features</li>
+                    <li>For client-side access, you'll need a CORS proxy or to publish via Google Apps Script</li>
+                </ul>
+
+                <h3 style="margin-top: 25px;">📝 Your Sheet URL</h3>
+                <p style="word-break: break-all; background: white; padding: 15px; border-radius: 6px; font-family: monospace; font-size: 0.85em;">
+                    https://docs.google.com/spreadsheets/d/e/2PACX-1vSlVJNYUaEcY1as9YcKPu18BaceP9vQvg1vxg3KD_Z1WOsv9lL5OOnHIqJ_sY5yJOKLPcgEsSopQTc8/pubhtml
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function showEmbed() {
+        document.getElementById('embedView').style.display = 'block';
+        document.getElementById('infoView').style.display = 'none';
+        
+        const buttons = document.querySelectorAll('.view-toggle button');
+        buttons[0].classList.add('active');
+        buttons[1].classList.remove('active');
+    }
+
+    function showInfo() {
+        document.getElementById('embedView').style.display = 'none';
+        document.getElementById('infoView').style.display = 'block';
+        
+        const buttons = document.querySelectorAll('.view-toggle button');
+        buttons[0].classList.remove('active');
+        buttons[1].classList.add('active');
+    }
+
+    console.log('📊 Location Data Viewer loaded!');
+    console.log('Your sheet is embedded and ready to view.');
+</script>
+```
+
+</body>
+</html>
