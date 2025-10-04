@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hello World - World Clock</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌍</text></svg>">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Hello World 🌍</h1>
+      <p class="subtitle">Current time around the globe</p>
+    </header>
+    
+    <div class="clocks-grid">
+      <div class="clock-card">
+        <div class="city-name">New York</div>
+        <div class="time" id="time-newyork">--:--:--</div>
+        <div class="timezone">America/New_York</div>
+      </div>
+      
+      <div class="clock-card">
+        <div class="city-name">London</div>
+        <div class="time" id="time-london">--:--:--</div>
+        <div class="timezone">Europe/London</div>
+      </div>
+      
+      <div class="clock-card">
+        <div class="city-name">Tokyo</div>
+        <div class="time" id="time-tokyo">--:--:--</div>
+        <div class="timezone">Asia/Tokyo</div>
+      </div>
+      
+      <div class="clock-card">
+        <div class="city-name">Sydney</div>
+        <div class="time" id="time-sydney">--:--:--</div>
+        <div class="timezone">Australia/Sydney</div>
+      </div>
+      
+      <div class="clock-card">
+        <div class="city-name">Paris</div>
+        <div class="time" id="time-paris">--:--:--</div>
+        <div class="timezone">Europe/Paris</div>
+      </div>
+      
+      <div class="clock-card">
+        <div class="city-name">Dubai</div>
+        <div class="time" id="time-dubai">--:--:--</div>
+        <div class="timezone">Asia/Dubai</div>
+      </div>
+      
+      <div class="clock-card">
+        <div class="city-name">Singapore</div>
+        <div class="time" id="time-singapore">--:--:--</div>
+        <div class="timezone">Asia/Singapore</div>
+      </div>
+      
+      <div class="clock-card">
+        <div class="city-name">Los Angeles</div>
+        <div class="time" id="time-losangeles">--:--:--</div>
+        <div class="timezone">America/Los_Angeles</div>
+      </div>
+    </div>
+    
+    <footer>
+      <p>Times update every second</p>
+    </footer>
+  </div>
+  
+  <script src="script.js"></script>
+</body>
+</html>
