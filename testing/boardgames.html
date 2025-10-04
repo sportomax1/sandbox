@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BoardGameGeek Collection Manager</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+      background-color: #f5f5f5;
+    }
+    .container {
+      background: white;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
+    }
+    h1 {
+      color: #333;
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    .controls {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+      gap: 15px;
+    }
+    .user-input {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .user-input input {
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      width: 200px;
+    }
+    .action-buttons {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    button {
+      background-color: #4CAF50;
+      color: white;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    button:hover {
+      background-color: #45a049;
+    }
+    .btn-secondary {
+      background-color: #2196F3;
+    }
+    .btn-secondary:hover {
+      background-color: #1976D2;
+    }
+    .btn-warning {
+      background-color: #ff9800;
+    }
+    .btn-warning:hover {
+      background-color: #f57c00;
+    }
+    .status {
+      margin: 15px 0;
+      padding: 15px;
+      border-radius: 5px;
+      display: none;
+    }
+    .status.success {
+      background-color: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+    .status.error {
+      background-color: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+    .status.info {
+      background-color: #d1ecf1;
+      color: #0c5460;
+      border: 1px solid #bee5eb;
+    }
+    .games-count {
+      text-align: center;
+      margin: 15px 0;
+      font-size: 18px;
+      font-weight: bold;
+      color: #4CAF50;
+    }
+    .games-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+    .games-table th, .games-table td {
+      border: 1px solid #ddd;
+      padding: 10px;
+      text-align: left;
+      opacity: 0;
+      transform: translateY(20px);
+      transition: opacity 0.6s ease, transform 0.6s ease;
+    }
+    .games-table th {
+      background-color: #4CAF50;
+      color: white;
+      font-weight: bold;
+      opacity: 1;
+      transform: translateY(0);
+    }
+    .games-table tr.animate-in td {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    .games-table tr:nth-child(even) {
+      background-color: #f9f9f9;
+    }
+    .games-table tr:hover {
+      background-color: #e8f5e8;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+      transition: all 0.3s ease;
+    }
+    .games-table tr.animate-in:hover {
+      transform: translateY(-2px);
+    }
+    .game-image {
+      width: 60px;
+      height: 60px;
+      object-fit: cover;
+      border-radius: 4px;
+    }
+    .game-name {
+      font-weight: bold;
+      color: #333;
+    }
+    .rating {
+      font-weight: bold;
+      color: #ff9800;
+    }
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: #666;
+      font-size: 18px;
+    }
+    .no-data {
+      text-align: center;
+      padding: 40px;
+      color: #999;
+      font-style: italic;
+    }
+    .last-updated {
+      text-align: center;
+      color: #666;
+      font-style: italic;
+      margin: 10px 0;
+    }
+    .performance-metrics {
+      background-color: #f8f9fa;
+      border: 1px solid #dee2e6;
+      border-radius: 5px;
+      padding: 15px;
+      margin: 15px 0;
+      font-family: 'Courier New', monospace;
+    }
+    .performance-metrics h4 {
+      margin: 0 0 10px 0;
+      color: #495057;
+      font-family: Arial, sans-serif;
+    }
+    .metric-row {
+      display: flex;
+      justify-content: space-between;
+      margin: 5px 0;
+      padding: 5px;
+      background-color: white;
+      border-radius: 3px;
+    }
+    .metric-label {
+      font-weight: bold;
+      color: #495057;
+    }
+    .metric-value {
+      color: #007bff;
+      font-weight: bold;
+    }
+    .metric-value.fast {
+      color: #28a745;
+    }
+    .metric-value.medium {
+      color: #ffc107;
+    }
+    .metric-value.slow {
+      color: #dc3545;
+    }
+    .comparison-winner {
+      background-color: #d4edda;
+      border-left: 4px solid #28a745;
+      padding-left: 15px;
+    }
+    .progress {
+      width: 100%;
+      height: 20px;
+      background-color: #f0f0f0;
+      border-radius: 10px;
+      overflow: hidden;
+      margin: 15px 0;
+      display: none;
+    }
+    .progress-bar {
+      height: 100%;
+      background-color: #4CAF50;
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+    
+    .table-loading {
+      opacity: 0.6;
+      pointer-events: none;
+      position: relative;
+    }
+    
+    .table-loading::after {
+      content: 'Animating rows...';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(255,255,255,0.9);
+      padding: 15px 25px;
+      border-radius: 5px;
+      font-weight: bold;
+      color: #4CAF50;
+      z-index: 100;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>BoardGameGeek Collection Manager</h1>
+    
+    <div class="controls">
+      <div class="user-input">
+        <label for="username"><strong>BGG Username:</strong></label>
+        <input type="text" id="username" placeholder="Enter BGG username" value="sportomax">
+      </div>
+      <div class="action-buttons">
+        <button onclick="loadStoredGames()" class="btn-secondary">Load Stored Data</button>
+        <button onclick="refreshFromAPI()" class="btn-warning">🔄 Refresh from BGG API</button>
+        <button onclick="showManualImport()" class="btn-secondary">📁 Manual XML Import</button>
+        <button onclick="exportToCSV()">Export to CSV</button>
+      </div>
+    </div>
+    
+    <div class="status" id="status-message"></div>
+    
+    <!-- Manual Import Modal -->
+    <div id="manual-import" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000;">
+      <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 30px; border-radius: 10px; max-width: 600px; width: 90%;">
+        <h3>Manual XML Import</h3>
+        <p>If the API isn't working, you can manually import your BGG collection:</p>
+        <ol>
+          <li>Go to: <a href="https://boardgamegeek.com/xmlapi2/collection?stats=1&username=sportomax" target="_blank">https://boardgamegeek.com/xmlapi2/collection?stats=1&username=YOUR_USERNAME</a></li>
+          <li>Replace "YOUR_USERNAME" with your BGG username</li>
+          <li>Copy the entire XML content from that page</li>
+          <li>Paste it in the box below:</li>
+        </ol>
+        <textarea id="xml-input" placeholder="Paste your BGG collection XML here..." style="width: 100%; height: 200px; margin: 10px 0; padding: 10px; border: 1px solid #ddd; border-radius: 4px;"></textarea>
+        <div style="text-align: center; margin-top: 20px;">
+          <button onclick="importFromXML()" class="btn-warning">Import XML Data</button>
+          <button onclick="hideManualImport()" class="btn-secondary">Cancel</button>
+        </div>
+      </div>
+    </div>
+    
+    <div class="progress" id="progress">
+      <div class="progress-bar" id="progress-bar"></div>
+    </div>
+    <div class="last-updated" id="last-updated"></div>
+    <div class="performance-metrics" id="performance-metrics" style="display: none;">
+      <h4>⚡ Performance Metrics</h4>
+      <div id="metrics-content"></div>
+    </div>
+    <div class="games-count" id="games-count">Ready to load games...</div>
+    
+    <div class="loading" id="loading" style="display: none;">Loading games...</div>
+    <div class="no-data" id="no-data" style="display: none;">No games found.</div>
+    
+    <table class="games-table" id="games-table" style="display: none;">
+      <thead>
+        <tr>
+          <th>Image</th>
+          <th>Game Name</th>
+          <th>Year</th>
+          <th>Min Players</th>
+          <th>Max Players</th>
+          <th>Playing Time</th>
+          <th>Your Rating</th>
+          <th>BGG Rating</th>
+          <th>Rank</th>
+          <th>Owned</th>
+        </tr>
+      </thead>
+      <tbody id="games-tbody">
+      </tbody>
+    </table>
+  </div>
+
+  <script type="module">
+    // Import Firebase modules
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js";
+    import { getDatabase, ref, set, get, remove } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-database.js";
+
+    // Firebase config (same as your other apps)
+    const firebaseConfig = {
+      apiKey: "AIzaSyCDCwNxZto-1OFSkpFOHY_CvXig99TB_po",
+      authDomain: "chatlobby-6f969.firebaseapp.com",
+      databaseURL: "https://chatlobby-6f969-default-rtdb.firebaseio.com/",
+      projectId: "chatlobby-6f969",
+      storageBucket: "chatlobby-6f969.firebasestorage.app",
+      messagingSenderId: "939856304247",
+      appId: "1:939856304247:web:353e71ea8e68d8467e8e72",
+      measurementId: "G-J2GYLYM03S"
+    };
+
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    // DOM elements
+    const usernameInput = document.getElementById('username');
+    const statusMessage = document.getElementById('status-message');
+    const lastUpdated = document.getElementById('last-updated');
+    const gamesCount = document.getElementById('games-count');
+    const loading = document.getElementById('loading');
+    const noData = document.getElementById('no-data');
+    const gamesTable = document.getElementById('games-table');
+    const gamesTbody = document.getElementById('games-tbody');
+    const progress = document.getElementById('progress');
+    const progressBar = document.getElementById('progress-bar');
+    const performanceMetrics = document.getElementById('performance-metrics');
+    const metricsContent = document.getElementById('metrics-content');
+
+    // Performance tracking
+    let performanceData = {
+      firebase: { loadTime: null, gameCount: 0, lastMeasured: null },
+      api: { loadTime: null, gameCount: 0, lastMeasured: null, proxyUsed: null }
+    };
+
+    // Get speed class for performance timing
+    function getSpeedClass(loadTime) {
+      if (loadTime < 500) return 'speed-excellent';
+      if (loadTime < 2000) return 'speed-good';
+      if (loadTime < 5000) return 'speed-acceptable';
+      return 'speed-slow';
+    }
+
+    // Show performance metrics
+    function showPerformanceMetrics() {
+      if (!performanceData.firebase.loadTime && !performanceData.api.loadTime) {
+        performanceMetrics.style.display = 'none';
+        return;
+      }
+
+      let html = '';
+      
+      // Firebase metrics
+      if (performanceData.firebase.loadTime) {
+        const fbClass = getSpeedClass(performanceData.firebase.loadTime);
+        html += `
+          <div class="metric-row ${performanceData.firebase.loadTime <= performanceData.api.loadTime ? 'comparison-winner' : ''}">
+            <span class="metric-label">🔥 Firebase Load:</span>
+            <span class="metric-value ${fbClass}">${performanceData.firebase.loadTime}ms (${performanceData.firebase.gameCount} games)</span>
+          </div>
+        `;
+      }
+
+      // API metrics
+      if (performanceData.api.loadTime) {
+        const apiClass = getSpeedClass(performanceData.api.loadTime);
+        html += `
+          <div class="metric-row ${performanceData.api.loadTime < performanceData.firebase.loadTime ? 'comparison-winner' : ''}">
+            <span class="metric-label">🌐 BGG API Load:</span>
+            <span class="metric-value ${apiClass}">${performanceData.api.loadTime}ms (${performanceData.api.gameCount} games)</span>
+          </div>
+        `;
+        if (performanceData.api.proxyUsed) {
+          html += `
+            <div class="metric-row">
+              <span class="metric-label">📡 Proxy Used:</span>
+              <span class="metric-value">${performanceData.api.proxyUsed}</span>
+            </div>
+          `;
+        }
+      }
+
+      // Comparison
+      if (performanceData.firebase.loadTime && performanceData.api.loadTime) {
+        const difference = Math.abs(performanceData.api.loadTime - performanceData.firebase.loadTime);
+        const faster = performanceData.firebase.loadTime < performanceData.api.loadTime ? 'Firebase' : 'BGG API';
+        const speedup = Math.round((Math.max(performanceData.api.loadTime, performanceData.firebase.loadTime) / Math.min(performanceData.api.loadTime, performanceData.firebase.loadTime)) * 10) / 10;
+        
+        html += `
+          <div class="metric-row">
+            <span class="metric-label">🏆 Winner:</span>
+            <span class="metric-value fast">${faster} (${speedup}x faster, ${difference}ms difference)</span>
+          </div>
+        `;
+      }
+
+      metricsContent.innerHTML = html;
+      performanceMetrics.style.display = 'block';
+    }
+
+    // Show status message
+    function showStatus(message, type = 'info') {
+      statusMessage.textContent = message;
+      statusMessage.className = `status ${type}`;
+      statusMessage.style.display = 'block';
+      setTimeout(() => {
+        statusMessage.style.display = 'none';
+      }, 5000);
+    }
+
+    // Show progress
+    function showProgress(percent) {
+      progress.style.display = 'block';
+      progressBar.style.width = percent + '%';
+      if (percent >= 100) {
+        setTimeout(() => {
+          progress.style.display = 'none';
+        }, 1000);
+      }
+    }
+
+    // Hide progress
+    function hideProgress() {
+      progress.style.display = 'none';
+    }
+
+    // Show/hide elements
+    function showLoading() {
+      loading.style.display = 'block';
+      gamesTable.style.display = 'none';
+      noData.style.display = 'none';
+    }
+
+    function showTable() {
+      loading.style.display = 'none';
+      gamesTable.style.display = 'table';
+      noData.style.display = 'none';
+    }
+
+    function showNoData() {
+      loading.style.display = 'none';
+      gamesTable.style.display = 'none';
+      noData.style.display = 'block';
+    }
+
+    // Parse XML response from BGG API
+    function parseXMLResponse(xmlText) {
+      const parser = new DOMParser();
+      const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
+      
+      // Check for errors
+      if (xmlDoc.querySelector('parsererror')) {
+        throw new Error('Invalid XML response from BGG API');
+      }
+
+      const items = xmlDoc.querySelectorAll('item');
+      const games = [];
+
+      items.forEach(item => {
+        const game = {
+          objectId: item.getAttribute('objectid'),
+          name: item.querySelector('name')?.textContent || 'Unknown Game',
+          originalName: item.querySelector('originalname')?.textContent || '',
+          image: item.querySelector('image')?.textContent || '',
+          thumbnail: item.querySelector('thumbnail')?.textContent || '',
+          yearPublished: item.querySelector('yearpublished')?.textContent || '',
+          minPlayers: item.querySelector('stats')?.getAttribute('minplayers') || '',
+          maxPlayers: item.querySelector('stats')?.getAttribute('maxplayers') || '',
+          playingTime: item.querySelector('stats')?.getAttribute('playingtime') || '',
+          userRating: item.querySelector('stats rating')?.getAttribute('value') || 'N/A',
+          bggRating: item.querySelector('stats rating average')?.getAttribute('value') || 'N/A',
+          bggRank: item.querySelector('stats rating ranks rank')?.getAttribute('value') || 'N/A',
+          owned: item.querySelector('status')?.getAttribute('own') === '1' ? 'Yes' : 'No',
+          numPlays: item.querySelector('numplays')?.textContent || '0'
+        };
+        games.push(game);
+      });
+
+      return games;
+    }
+
+    // Fetch games from BGG API
+    async function fetchGamesFromAPI(username) {
+      const startTime = performance.now();
+      
+      showStatus('Fetching data from BoardGameGeek API...', 'info');
+      showProgress(10);
+      
+      // List of CORS proxies to try
+      const corsProxies = [
+        { url: 'https://api.allorigins.win/raw?url=', name: 'AllOrigins' },
+        { url: 'https://corsproxy.io/?', name: 'CorsProxy.io' },
+        { url: 'https://cors-proxy.htmldriven.com/?url=', name: 'HTMLDriven' },
+        { url: 'https://proxy.cors.sh/', name: 'Cors.sh' }
+      ];
+      
+      const apiUrl = `https://boardgamegeek.com/xmlapi2/collection?stats=1&username=${username}`;
+      
+      showProgress(30);
+      
+      for (let i = 0; i < corsProxies.length; i++) {
+        try {
+          showStatus(`Trying to fetch data (attempt ${i + 1}/${corsProxies.length})...`, 'info');
+          
+          let url;
+          let fetchOptions = {};
+          
+          if (corsProxies[i].url === 'https://api.allorigins.win/raw?url=') {
+            url = corsProxies[i].url + encodeURIComponent(apiUrl);
+          } else if (corsProxies[i].url === 'https://proxy.cors.sh/') {
+            url = corsProxies[i].url + apiUrl;
+            fetchOptions.headers = {
+              'x-cors-api-key': 'temp_key_for_demo'
+            };
+          } else {
+            url = corsProxies[i].url + apiUrl;
+          }
+          
+          const response = await fetch(url, fetchOptions);
+
+          if (!response.ok) {
+            throw new Error(`Proxy ${i + 1} responded with status: ${response.status}`);
+          }
+
+          showProgress(60);
+          
+          const xmlText = await response.text();
+          
+          // Check if we got a "please try again" response
+          if (xmlText.includes('<message>Your request for this collection has been accepted')) {
+            throw new Error('BGG API is processing the request. Please try again in a few moments.');
+          }
+          
+          // Check if we got HTML instead of XML (proxy error)
+          if (xmlText.trim().startsWith('<!DOCTYPE html') || xmlText.trim().startsWith('<html')) {
+            throw new Error('Received HTML instead of XML data');
+          }
+
+          showProgress(80);
+          
+          const games = parseXMLResponse(xmlText);
+          
+          if (games.length === 0) {
+            throw new Error('No games found for this username or collection is empty.');
+          }
+
+          showProgress(100);
+          
+          // Record performance metrics
+          const endTime = performance.now();
+          performanceData.api = {
+            loadTime: Math.round(endTime - startTime),
+            gameCount: games.length,
+            lastMeasured: new Date(),
+            proxyUsed: corsProxies[i].name
+          };
+          
+          return games;
+          
+        } catch (error) {
+          console.warn(`Proxy ${i + 1} failed:`, error.message);
+          
+          // If this is the last proxy, show the error
+          if (i === corsProxies.length - 1) {
+            hideProgress();
+            throw new Error(`All proxy attempts failed. Last error: ${error.message}. 
+
+Possible solutions:
+1. Try again in a few moments (BGG API may be busy)
+2. Check if the username "${username}" is correct and has a public collection
+3. BGG may be temporarily unavailable
+
+Alternative: You can manually export your collection from BGG as XML and use the "Manual Import" feature (coming soon).`);
+          }
+          
+          // Wait a moment before trying next proxy
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      }
+    }
+
+    // Store games in Firebase
+    async function storeGamesInFirebase(games, username) {
+      try {
+        const gamesData = {
+          username: username,
+          lastUpdated: Date.now(),
+          gameCount: games.length,
+          games: {}
+        };
+
+        // Convert games array to object with objectId as key
+        games.forEach(game => {
+          gamesData.games[game.objectId] = game;
+        });
+
+        await set(ref(db, 'bggCollection'), gamesData);
+        showStatus(`Successfully stored ${games.length} games in database!`, 'success');
+        
+      } catch (error) {
+        console.error('Error storing games:', error);
+        throw new Error('Failed to store games in database: ' + error.message);
+      }
+    }
+
+    // Load stored games from Firebase
+    window.loadStoredGames = async function() {
+      const startTime = performance.now();
+      showLoading();
+      
+      try {
+        const snapshot = await get(ref(db, 'bggCollection'));
+        const endTime = performance.now();
+        
+        if (snapshot.exists()) {
+          const data = snapshot.val();
+          const games = Object.values(data.games || {});
+          
+          // Record performance metrics
+          performanceData.firebase = {
+            loadTime: Math.round(endTime - startTime),
+            gameCount: games.length,
+            lastMeasured: new Date()
+          };
+          
+          displayGames(games);
+          gamesCount.textContent = `Showing ${games.length} games from database`;
+          
+          if (data.lastUpdated) {
+            const lastUpdate = new Date(data.lastUpdated);
+            lastUpdated.textContent = `Last updated: ${lastUpdate.toLocaleString()}`;
+            lastUpdated.style.display = 'block';
+          }
+          
+          // Show performance comparison
+          showPerformanceMetrics();
+          
+          showStatus('Loaded games from stored data!', 'success');
+        } else {
+          gamesCount.textContent = 'No stored games found';
+          showNoData();
+          showStatus('No stored games found. Click "Refresh from BGG API" to fetch data.', 'info');
+        }
+      } catch (error) {
+        console.error('Error loading stored games:', error);
+        showStatus('Error loading stored games: ' + error.message, 'error');
+        showNoData();
+      }
+    };
+
+    // Refresh games from API
+    window.refreshFromAPI = async function() {
+      const username = usernameInput.value.trim();
+      
+      if (!username) {
+        showStatus('Please enter a BGG username!', 'error');
+        return;
+      }
+
+      if (!confirm(`This will delete all stored games and fetch fresh data for "${username}" from BGG. Continue?`)) {
+        return;
+      }
+
+      showLoading();
+      
+      try {
+        // Clear existing data first (truncate)
+        await remove(ref(db, 'bggCollection'));
+        showStatus('Cleared existing data, fetching from API...', 'info');
+        
+        // Fetch new data
+        const games = await fetchGamesFromAPI(username);
+        
+        // Store in Firebase
+        await storeGamesInFirebase(games, username);
+        
+        // Display games
+        displayGames(games);
+        gamesCount.textContent = `Successfully loaded ${games.length} games`;
+        
+        const now = new Date();
+        lastUpdated.textContent = `Last updated: ${now.toLocaleString()}`;
+        lastUpdated.style.display = 'block';
+        
+        // Show performance comparison after operations complete
+        showPerformanceMetrics();
+        
+      } catch (error) {
+        console.error('Error refreshing from API:', error);
+        showStatus('Error: ' + error.message, 'error');
+        showNoData();
+      } finally {
+        hideProgress();
+      }
+    };
+
+    // Display games in table with delayed scrolling animation
+    function displayGames(games) {
+      gamesTbody.innerHTML = '';
+      
+      if (games.length === 0) {
+        showNoData();
+        return;
+      }
+
+      // Add all rows first (invisible)
+      games.forEach((game, index) => {
+        const row = gamesTbody.insertRow();
+        
+        // Image
+        const imageCell = row.insertCell(0);
+        if (game.thumbnail) {
+          imageCell.innerHTML = `<img src="${game.thumbnail}" alt="${game.name}" class="game-image" onerror="this.style.display='none'">`;
+        } else {
+          imageCell.textContent = 'No Image';
+        }
+        
+        // Game Name
+        row.insertCell(1).innerHTML = `<div class="game-name">${game.name}</div>`;
+        
+        // Year
+        row.insertCell(2).textContent = game.yearPublished || 'N/A';
+        
+        // Min Players
+        row.insertCell(3).textContent = game.minPlayers || 'N/A';
+        
+        // Max Players
+        row.insertCell(4).textContent = game.maxPlayers || 'N/A';
+        
+        // Playing Time
+        row.insertCell(5).textContent = game.playingTime ? game.playingTime + ' min' : 'N/A';
+        
+        // User Rating
+        const userRating = parseFloat(game.userRating);
+        row.insertCell(6).innerHTML = `<span class="rating">${userRating > 0 ? userRating.toFixed(1) : 'N/A'}</span>`;
+        
+        // BGG Rating
+        const bggRating = parseFloat(game.bggRating);
+        row.insertCell(7).textContent = bggRating > 0 ? bggRating.toFixed(1) : 'N/A';
+        
+        // Rank
+        row.insertCell(8).textContent = game.bggRank !== 'Not Ranked' ? game.bggRank : 'N/A';
+        
+        // Owned
+        row.insertCell(9).textContent = game.owned;
+      });
+
+      showTable();
+      
+      // Animate rows in with delay
+      animateTableRows();
+    }
+
+    // Animate table rows with delayed scrolling effect
+    function animateTableRows() {
+      const table = document.getElementById('games-table');
+      table.classList.add('table-loading');
+      
+      const rows = Array.from(gamesTbody.querySelectorAll('tr'));
+      const delay = 50; // Delay between each row animation (milliseconds)
+      
+      rows.forEach((row, index) => {
+        setTimeout(() => {
+          row.classList.add('animate-in');
+        }, index * delay);
+      });
+      
+      // Remove loading state after all animations complete
+      const totalDelay = rows.length * delay + 600; // Extra time for last animation
+      setTimeout(() => {
+        table.classList.remove('table-loading');
+      }, totalDelay);
+    }
+
+    // Export to CSV
+    window.exportToCSV = function() {
+      if (gamesTable.style.display === 'none') {
+        alert('No data to export. Please load games first.');
+        return;
+      }
+
+      let csv = 'Game Name,Year,Min Players,Max Players,Playing Time,Your Rating,BGG Rating,Rank,Owned\n';
+      const rows = gamesTable.querySelectorAll('tbody tr');
+      
+      rows.forEach(row => {
+        const cells = row.querySelectorAll('td');
+        const rowData = [];
+        
+        // Skip image column, get the rest
+        for (let i = 1; i < cells.length; i++) {
+          let text = cells[i].textContent.trim();
+          if (text.includes(',') || text.includes('"')) {
+            text = '"' + text.replace(/"/g, '""') + '"';
+          }
+          rowData.push(text);
+        }
+        
+        csv += rowData.join(',') + '\n';
+      });
+
+      // Download CSV
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'bgg_collection.csv';
+      a.click();
+      window.URL.revokeObjectURL(url);
+    };
+
+    // Show/hide manual import modal
+    window.showManualImport = function() {
+      document.getElementById('manual-import').style.display = 'block';
+    };
+
+    window.hideManualImport = function() {
+      document.getElementById('manual-import').style.display = 'none';
+      document.getElementById('xml-input').value = '';
+    };
+
+    // Import from manual XML input
+    window.importFromXML = async function() {
+      const xmlInput = document.getElementById('xml-input').value.trim();
+      const username = usernameInput.value.trim() || 'manual-import';
+      
+      if (!xmlInput) {
+        alert('Please paste XML content first!');
+        return;
+      }
+
+      if (!confirm(`This will replace existing data with manually imported data for "${username}". Continue?`)) {
+        return;
+      }
+
+      hideManualImport();
+      showLoading();
+      
+      try {
+        showStatus('Processing XML data...', 'info');
+        showProgress(20);
+        
+        // Parse the XML
+        const games = parseXMLResponse(xmlInput);
+        showProgress(60);
+        
+        if (games.length === 0) {
+          throw new Error('No games found in the XML data.');
+        }
+        
+        // Clear existing data first
+        await remove(ref(db, 'bggCollection'));
+        showProgress(80);
+        
+        // Store in Firebase
+        await storeGamesInFirebase(games, username);
+        showProgress(100);
+        
+        // Display games
+        displayGames(games);
+        gamesCount.textContent = `Successfully imported ${games.length} games`;
+        
+        const now = new Date();
+        lastUpdated.textContent = `Last updated: ${now.toLocaleString()} (Manual Import)`;
+        lastUpdated.style.display = 'block';
+        
+        showStatus(`Successfully imported ${games.length} games from XML!`, 'success');
+        
+      } catch (error) {
+        console.error('Error importing XML:', error);
+        showStatus('Error importing XML: ' + error.message, 'error');
+        showNoData();
+      } finally {
+        hideProgress();
+      }
+    };
+
+    // Load stored games on page load
+    loadStoredGames();
+  </script>
+</body>
+</html>

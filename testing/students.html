@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Student Information System</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      background-color: #f5f5f5;
+    }
+    .container {
+      background: white;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
+    }
+    h1, h2 {
+      color: #333;
+      text-align: center;
+    }
+    .form-group {
+      margin-bottom: 15px;
+    }
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+      color: #555;
+    }
+    input, select, textarea {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      font-size: 14px;
+      box-sizing: border-box;
+    }
+    textarea {
+      height: 80px;
+      resize: vertical;
+    }
+    .form-row {
+      display: flex;
+      gap: 15px;
+    }
+    .form-row .form-group {
+      flex: 1;
+    }
+    button {
+      background-color: #4CAF50;
+      color: white;
+      padding: 12px 24px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 16px;
+      margin: 5px;
+    }
+    button:hover {
+      background-color: #45a049;
+    }
+    .btn-secondary {
+      background-color: #2196F3;
+    }
+    .btn-secondary:hover {
+      background-color: #1976D2;
+    }
+    .btn-danger {
+      background-color: #f44336;
+    }
+    .btn-danger:hover {
+      background-color: #da190b;
+    }
+    .students-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+    .students-table th, .students-table td {
+      border: 1px solid #ddd;
+      padding: 12px;
+      text-align: left;
+    }
+    .students-table th {
+      background-color: #4CAF50;
+      color: white;
+    }
+    .students-table tr:nth-child(even) {
+      background-color: #f2f2f2;
+    }
+    .students-table tr:hover {
+      background-color: #e8f5e8;
+    }
+    .action-buttons {
+      display: flex;
+      gap: 5px;
+    }
+    .action-buttons button {
+      padding: 5px 10px;
+      font-size: 12px;
+      margin: 0;
+    }
+    .status {
+      margin: 10px 0;
+      padding: 10px;
+      border-radius: 5px;
+      display: none;
+    }
+    .status.success {
+      background-color: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+    .status.error {
+      background-color: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+    .student-count {
+      text-align: center;
+      margin: 10px 0;
+      font-size: 18px;
+      font-weight: bold;
+      color: #4CAF50;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Student Information System</h1>
+    
+    <form id="student-form">
+      <div class="form-row">
+        <div class="form-group">
+          <label for="student-id">Student ID:</label>
+          <input type="text" id="student-id" required>
+        </div>
+        <div class="form-group">
+          <label for="first-name">First Name:</label>
+          <input type="text" id="first-name" required>
+        </div>
+        <div class="form-group">
+          <label for="last-name">Last Name:</label>
+          <input type="text" id="last-name" required>
+        </div>
+      </div>
+      
+      <div class="form-row">
+        <div class="form-group">
+          <label for="email">Email:</label>
+          <input type="email" id="email" required>
+        </div>
+        <div class="form-group">
+          <label for="phone">Phone:</label>
+          <input type="tel" id="phone">
+        </div>
+        <div class="form-group">
+          <label for="grade">Grade/Year:</label>
+          <select id="grade" required>
+            <option value="">Select Grade</option>
+            <option value="9">Grade 9</option>
+            <option value="10">Grade 10</option>
+            <option value="11">Grade 11</option>
+            <option value="12">Grade 12</option>
+            <option value="freshman">Freshman</option>
+            <option value="sophomore">Sophomore</option>
+            <option value="junior">Junior</option>
+            <option value="senior">Senior</option>
+          </select>
+        </div>
+      </div>
+      
+      <div class="form-row">
+        <div class="form-group">
+          <label for="major">Major/Subject:</label>
+          <input type="text" id="major">
+        </div>
+        <div class="form-group">
+          <label for="enrollment-date">Enrollment Date:</label>
+          <input type="date" id="enrollment-date">
+        </div>
+        <div class="form-group">
+          <label for="status">Status:</label>
+          <select id="status">
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+            <option value="graduated">Graduated</option>
+            <option value="transferred">Transferred</option>
+          </select>
+        </div>
+      </div>
+      
+      <div class="form-group">
+        <label for="notes">Notes:</label>
+        <textarea id="notes" placeholder="Additional notes about the student..."></textarea>
+      </div>
+      
+      <div style="text-align: center;">
+        <button type="submit" id="submit-btn">Add Student</button>
+        <button type="button" id="clear-btn" class="btn-secondary">Clear Form</button>
+        <button type="button" id="cancel-btn" class="btn-danger" style="display: none;">Cancel Edit</button>
+      </div>
+    </form>
+    
+    <div class="status" id="status-message"></div>
+  </div>
+
+  <div class="container">
+    <h2>Student Records</h2>
+    <div class="student-count" id="student-count">Loading students...</div>
+    
+    <div style="text-align: center; margin-bottom: 15px;">
+      <button onclick="loadStudents()" class="btn-secondary">Refresh Data</button>
+      <button onclick="exportStudentsToCSV()" class="btn-secondary">Export to CSV</button>
+    </div>
+    
+    <table class="students-table" id="students-table" style="display: none;">
+      <thead>
+        <tr>
+          <th>Student ID</th>
+          <th>Name</th>
+          <th>Email</th>
+          <th>Phone</th>
+          <th>Grade</th>
+          <th>Major</th>
+          <th>Status</th>
+          <th>Enrollment Date</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="students-tbody">
+      </tbody>
+    </table>
+  </div>
+
+  <script type="module">
+    // Import Firebase modules (same as your chat app)
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js";
+    import { getDatabase, ref, push, get, update, remove, set } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-database.js";
+
+    // Firebase config (same as your chat app)
+    const firebaseConfig = {
+      apiKey: "AIzaSyCDCwNxZto-1OFSkpFOHY_CvXig99TB_po",
+      authDomain: "chatlobby-6f969.firebaseapp.com",
+      databaseURL: "https://chatlobby-6f969-default-rtdb.firebaseio.com/",
+      projectId: "chatlobby-6f969",
+      storageBucket: "chatlobby-6f969.firebasestorage.app",
+      messagingSenderId: "939856304247",
+      appId: "1:939856304247:web:353e71ea8e68d8467e8e72",
+      measurementId: "G-J2GYLYM03S"
+    };
+
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    // DOM elements
+    const form = document.getElementById('student-form');
+    const submitBtn = document.getElementById('submit-btn');
+    const clearBtn = document.getElementById('clear-btn');
+    const cancelBtn = document.getElementById('cancel-btn');
+    const statusMessage = document.getElementById('status-message');
+    const studentsTable = document.getElementById('students-table');
+    const studentsTbody = document.getElementById('students-tbody');
+    const studentCount = document.getElementById('student-count');
+
+    let editingStudentId = null;
+
+    // Show status message
+    function showStatus(message, isError = false) {
+      statusMessage.textContent = message;
+      statusMessage.className = `status ${isError ? 'error' : 'success'}`;
+      statusMessage.style.display = 'block';
+      setTimeout(() => {
+        statusMessage.style.display = 'none';
+      }, 3000);
+    }
+
+    // Clear form
+    function clearForm() {
+      form.reset();
+      editingStudentId = null;
+      submitBtn.textContent = 'Add Student';
+      cancelBtn.style.display = 'none';
+    }
+
+    // Form submission
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const studentData = {
+        studentId: document.getElementById('student-id').value.trim(),
+        firstName: document.getElementById('first-name').value.trim(),
+        lastName: document.getElementById('last-name').value.trim(),
+        email: document.getElementById('email').value.trim(),
+        phone: document.getElementById('phone').value.trim(),
+        grade: document.getElementById('grade').value,
+        major: document.getElementById('major').value.trim(),
+        enrollmentDate: document.getElementById('enrollment-date').value,
+        status: document.getElementById('status').value,
+        notes: document.getElementById('notes').value.trim(),
+        createdAt: editingStudentId ? undefined : Date.now(),
+        updatedAt: Date.now()
+      };
+
+      try {
+        if (editingStudentId) {
+          // Update existing student
+          await update(ref(db, `students/${editingStudentId}`), studentData);
+          showStatus('Student updated successfully!');
+        } else {
+          // Add new student
+          await push(ref(db, 'students'), studentData);
+          showStatus('Student added successfully!');
+        }
+        
+        clearForm();
+        loadStudents();
+      } catch (error) {
+        console.error('Error saving student:', error);
+        showStatus('Error saving student: ' + error.message, true);
+      }
+    });
+
+    // Clear button
+    clearBtn.addEventListener('click', clearForm);
+
+    // Cancel edit button
+    cancelBtn.addEventListener('click', clearForm);
+
+    // Load students
+    window.loadStudents = async function() {
+      try {
+        const studentsRef = ref(db, 'students');
+        const snapshot = await get(studentsRef);
+        
+        studentsTbody.innerHTML = '';
+        
+        if (snapshot.exists()) {
+          const students = snapshot.val();
+          const studentArray = Object.entries(students).map(([id, data]) => ({
+            id,
+            ...data
+          }));
+
+          // Sort by student ID
+          studentArray.sort((a, b) => a.studentId.localeCompare(b.studentId));
+
+          studentArray.forEach(student => {
+            const row = studentsTbody.insertRow();
+            
+            row.insertCell(0).textContent = student.studentId;
+            row.insertCell(1).textContent = `${student.firstName} ${student.lastName}`;
+            row.insertCell(2).textContent = student.email;
+            row.insertCell(3).textContent = student.phone || '-';
+            row.insertCell(4).textContent = student.grade || '-';
+            row.insertCell(5).textContent = student.major || '-';
+            row.insertCell(6).textContent = student.status || 'active';
+            row.insertCell(7).textContent = student.enrollmentDate || '-';
+            
+            const actionsCell = row.insertCell(8);
+            actionsCell.innerHTML = `
+              <div class="action-buttons">
+                <button onclick="editStudent('${student.id}')" class="btn-secondary">Edit</button>
+                <button onclick="deleteStudent('${student.id}', '${student.studentId}')" class="btn-danger">Delete</button>
+              </div>
+            `;
+          });
+
+          studentCount.textContent = `Total Students: ${studentArray.length}`;
+          studentsTable.style.display = 'table';
+        } else {
+          studentCount.textContent = 'No students found';
+          studentsTable.style.display = 'none';
+        }
+      } catch (error) {
+        console.error('Error loading students:', error);
+        showStatus('Error loading students: ' + error.message, true);
+      }
+    };
+
+    // Edit student
+    window.editStudent = async function(studentId) {
+      try {
+        const studentRef = ref(db, `students/${studentId}`);
+        const snapshot = await get(studentRef);
+        
+        if (snapshot.exists()) {
+          const student = snapshot.val();
+          
+          document.getElementById('student-id').value = student.studentId || '';
+          document.getElementById('first-name').value = student.firstName || '';
+          document.getElementById('last-name').value = student.lastName || '';
+          document.getElementById('email').value = student.email || '';
+          document.getElementById('phone').value = student.phone || '';
+          document.getElementById('grade').value = student.grade || '';
+          document.getElementById('major').value = student.major || '';
+          document.getElementById('enrollment-date').value = student.enrollmentDate || '';
+          document.getElementById('status').value = student.status || 'active';
+          document.getElementById('notes').value = student.notes || '';
+          
+          editingStudentId = studentId;
+          submitBtn.textContent = 'Update Student';
+          cancelBtn.style.display = 'inline-block';
+          
+          // Scroll to form
+          document.querySelector('.container').scrollIntoView({ behavior: 'smooth' });
+        }
+      } catch (error) {
+        console.error('Error loading student for edit:', error);
+        showStatus('Error loading student data: ' + error.message, true);
+      }
+    };
+
+    // Delete student
+    window.deleteStudent = async function(studentId, studentName) {
+      if (confirm(`Are you sure you want to delete student "${studentName}"? This action cannot be undone.`)) {
+        try {
+          await remove(ref(db, `students/${studentId}`));
+          showStatus('Student deleted successfully!');
+          loadStudents();
+        } catch (error) {
+          console.error('Error deleting student:', error);
+          showStatus('Error deleting student: ' + error.message, true);
+        }
+      }
+    };
+
+    // Export to CSV
+    window.exportStudentsToCSV = function() {
+      const table = document.getElementById('students-table');
+      if (table.style.display === 'none') {
+        alert('No data to export. Please load students first.');
+        return;
+      }
+
+      let csv = 'Student ID,First Name,Last Name,Email,Phone,Grade,Major,Status,Enrollment Date,Notes\n';
+      const rows = table.querySelectorAll('tbody tr');
+      
+      rows.forEach(row => {
+        const cells = row.querySelectorAll('td');
+        const rowData = [];
+        
+        // Skip the actions column (last one)
+        for (let i = 0; i < cells.length - 1; i++) {
+          let text = cells[i].textContent.trim();
+          if (text.includes(',') || text.includes('"')) {
+            text = '"' + text.replace(/"/g, '""') + '"';
+          }
+          rowData.push(text);
+        }
+        
+        csv += rowData.join(',') + '\n';
+      });
+
+      // Download CSV
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'students.csv';
+      a.click();
+      window.URL.revokeObjectURL(url);
+    };
+
+    // Load students on page load
+    loadStudents();
+  </script>
+</body>
+</html>
