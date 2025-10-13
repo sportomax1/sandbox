@@ -1,1 +1,101 @@
 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Random Matchup Picker</title>
+  <style>
+    body { font-family: Arial, sans-serif; text-align: center; }
+    .item-box { display: inline-block; margin: 30px; padding: 30px 60px; border: 2px solid #333; border-radius: 12px; font-size: 2em; cursor: pointer; transition: background 0.3s; }
+    .item-box:hover { background: #e0e0e0; }
+    .winner { background: #a6e3a1; }
+    #nextBtn { margin-top: 40px; padding: 12px 32px; font-size: 1.2em; }
+    #status { margin-top: 30px; color: #0a0; }
+  </style>
+</head>
+<body>
+  <h1>Choose the Winner!</h1>
+  <div id="matchup">
+    <div id="itemA" class="item-box"></div>
+    <span style="font-size: 2em; font-weight: bold;">VS</span>
+    <div id="itemB" class="item-box"></div>
+  </div>
+  <button id="nextBtn" style="display:none;">Next Matchup</button>
+  <div id="status"></div>
+
+  <script>
+    // Sample list of 10 items
+    const items = [
+      "Apple", "Banana", "Carrot", "Dragonfruit", "Eggplant",
+      "Fig", "Grape", "Honeydew", "Iceberg", "Jalapeño"
+    ];
+
+    let lastMatchup = null;
+
+    function getRandomPair() {
+      let a, b;
+      do {
+        a = Math.floor(Math.random() * items.length);
+        b = Math.floor(Math.random() * items.length);
+      } while (a === b || (lastMatchup && ((a === lastMatchup[0] && b === lastMatchup[1]) || (a === lastMatchup[1] && b === lastMatchup[0]))));
+      lastMatchup = [a, b];
+      return [items[a], items[b]];
+    }
+
+    let currentPair = [];
+    const itemA = document.getElementById('itemA');
+    const itemB = document.getElementById('itemB');
+    const status = document.getElementById('status');
+    const nextBtn = document.getElementById('nextBtn');
+
+    function setupMatchup() {
+      currentPair = getRandomPair();
+      itemA.textContent = currentPair[0];
+      itemB.textContent = currentPair[1];
+      itemA.classList.remove('winner');
+      itemB.classList.remove('winner');
+      status.textContent = '';
+      nextBtn.style.display = 'none';
+      itemA.style.pointerEvents = 'auto';
+      itemB.style.pointerEvents = 'auto';
+    }
+
+    async function sendResult(winner, loser) {
+      status.textContent = 'Saving result...';
+      try {
+        const resp = await fetch('https://your-netlify-site.netlify.app/.netlify/functions/submit-result', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({winner, loser})
+        });
+        const data = await resp.json();
+        if (resp.ok) {
+          status.textContent = 'Result saved!';
+        } else {
+          status.textContent = 'Error: ' + (data.error || 'Could not save result.');
+        }
+      } catch (e) {
+        status.textContent = 'Network error.';
+      }
+    }
+
+    itemA.onclick = async () => {
+      itemA.classList.add('winner');
+      itemB.style.pointerEvents = 'none';
+      itemA.style.pointerEvents = 'none';
+      await sendResult(currentPair[0], currentPair[1]);
+      nextBtn.style.display = '';
+    };
+    itemB.onclick = async () => {
+      itemB.classList.add('winner');
+      itemA.style.pointerEvents = 'none';
+      itemB.style.pointerEvents = 'none';
+      await sendResult(currentPair[1], currentPair[0]);
+      nextBtn.style.display = '';
+    };
+    nextBtn.onclick = setupMatchup;
+
+    setupMatchup();
+  </script>
+</body>
+</html>
