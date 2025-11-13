@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fire Tap 🔥</title>
+    
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Define the primary font and set the body to take up the full screen */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f7f7;
+            height: 100vh;
+            overflow: hidden; /* Hide scroll bars for a clean app feel */
+        }
+        
+        /* Tap indicator styling */
+        .fire-emoji {
+            position: absolute;
+            font-size: 3rem;
+            pointer-events: none; /* Allows clicks to pass through the emoji */
+            user-select: none;
+            opacity: 0;
+            transition: opacity 0.5s ease-out, transform 0.5s ease-out;
+            transform: scale(0.5);
+        }
+        
+        /* The main tap area must fill the entire screen below the control panel */
+        #tapArea {
+            flex-grow: 1;
+            position: relative;
+            background-color: white;
+            cursor: pointer;
+        }
+
+        /* PWA Aesthetic - Hide the footer bar on iOS devices if possible */
+        .pwa-container {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+    </style>
+
+    <!--
+    *** iOS PWA / Home Screen App Configuration ***
+    These meta tags enable the "Add to Home Screen" experience.
+    -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Fire Tap">
+
+    <!-- 
+    *** CUSTOM ICON SETUP ***
+    The user must save a square image of their fire emoji to their site 
+    and replace the URL below. This is just a placeholder instruction.
+    For local testing, a placeholder URL is used.
+    -->
+    <link rel="apple-touch-icon" href="https://placehold.co/180x180/FF4500/ffffff?text=🔥">
+
+</head>
+<body>
+
+    <div class="pwa-container">
+        
+        <!-- Control Panel (Always visible at the top) -->
+        <div id="controlPanel" class="p-4 bg-gray-900 shadow-xl flex justify-between items-center z-10">
+            <div class="text-white text-sm md:text-lg font-bold">
+                Taps: <span id="tapCountDisplay" class="text-yellow-400">0</span>
+            </div>
+            <button id="clearButton" 
+                    class="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-xl shadow-lg transition duration-150 ease-in-out active:scale-95 text-xs md:text-base">
+                Clear Counter
+            </button>
+        </div>
+
+        <!-- Main Tap Area (Fills the rest of the screen) -->
+        <div id="tapArea">
+            <!-- Emojis will be dynamically injected here -->
+        </div>
+    </div>
+
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, onSnapshot, updateDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        
+        // Use Debug logging for Firestore
+        setLogLevel('Debug');
+
+        // --- Global Variables (Provided by Canvas Environment) ---
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        let db;
+        let auth;
+        let userId = null;
+        let userDocRef = null;
+        let currentTapCount = 0;
+
+        const tapArea = document.getElementById('tapArea');
+        const tapCountDisplay = document.getElementById('tapCountDisplay');
+        const clearButton = document.getElementById('clearButton');
+        
+        // --- Firebase Initialization and Authentication ---
+
+        /**
+         * Initializes Firebase and authenticates the user.
+         */
+        async function initializeFirebase() {
+            try {
+                const app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+
+                // Sign in using the custom token if available, otherwise sign in anonymously
+                if (initialAuthToken) {
+                    await signInWithCustomToken(auth, initialAuthToken);
+                    console.log('Signed in with custom token.');
+                } else {
+                    await signInAnonymously(auth);
+                    console.log('Signed in anonymously.');
+                }
+
+                // Set up the listener for auth state changes
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        userId = user.uid;
+                        // MANDATORY: Show userId for multi-user context (even if this app is single-user)
+                        document.getElementById('controlPanel').insertAdjacentHTML('beforeend', `<span class="text-xs text-gray-500 ml-2">UID: ${userId.substring(0, 8)}...</span>`);
+                        setupFirestoreListener(userId);
+                    } else {
+                        console.log("User signed out or failed to authenticate.");
+                    }
+                });
+
+            } catch (error) {
+                console.error("Error during Firebase initialization or authentication:", error);
+                // Display error to the user if auth fails criticaly
+                tapCountDisplay.textContent = 'ERROR';
+                tapArea.textContent = 'Failed to load app data. Check console.';
+                tapArea.classList.add('flex', 'items-center', 'justify-center', 'text-red-600', 'text-xl');
+            }
+        }
+
+        /**
+         * Sets up the real-time listener for the tap count data.
+         * @param {string} uid The authenticated user's ID.
+         */
+        function setupFirestoreListener(uid) {
+            // Document Path: /artifacts/{appId}/users/{userId}/clickData/fireCounter
+            userDocRef = doc(db, 'artifacts', appId, 'users', uid, 'clickData', 'fireCounter');
+            
+            // Listen for real-time changes
+            onSnapshot(userDocRef, (docSnap) => {
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    currentTapCount = data.count || 0;
+                    tapCountDisplay.textContent = currentTapCount;
+                } else {
+                    // Document doesn't exist, initialize it
+                    currentTapCount = 0;
+                    tapCountDisplay.textContent = currentTapCount;
+                    // Optional: create the doc on first load if it doesn't exist
+                    setDoc(userDocRef, { count: 0 }).catch(e => console.error("Error initializing doc:", e));
+                }
+            }, (error) => {
+                console.error("Error listening to Firestore:", error);
+            });
+        }
+
+        // --- Application Logic ---
+
+        /**
+         * Handles the click/tap event on the screen.
+         * @param {Event} event The mouse or touch event.
+         */
+        async function handleTap(event) {
+            if (!userDocRef || !db) {
+                console.warn("Firestore not ready yet.");
+                return;
+            }
+
+            const clientX = event.clientX;
+            const clientY = event.clientY;
+
+            // 1. Visually display the emoji
+            showEmoji(clientX, clientY);
+
+            // 2. Update the counter in Firestore
+            try {
+                const newCount = currentTapCount + 1;
+                // Update the document with the new count
+                await setDoc(userDocRef, { count: newCount }, { merge: false });
+                // Note: The onSnapshot listener will handle updating the UI display.
+            } catch (error) {
+                console.error("Error updating tap count:", error);
+            }
+        }
+
+        /**
+         * Creates and animates the fire emoji at the tap location.
+         * @param {number} x X coordinate of the tap.
+         * @param {number} y Y coordinate of the tap.
+         */
+        function showEmoji(x, y) {
+            const emoji = document.createElement('div');
+            emoji.textContent = '🔥';
+            emoji.className = 'fire-emoji';
+            
+            // Calculate coordinates relative to the tapArea
+            const rect = tapArea.getBoundingClientRect();
+            
+            // Position the emoji center-aligned at the click point
+            emoji.style.left = `${x - rect.left - 24}px`; // -24px to center (half of 3rem)
+            emoji.style.top = `${y - rect.top - 24}px`;
+
+            tapArea.appendChild(emoji);
+
+            // Force reflow to ensure the transition starts
+            void emoji.offsetWidth; 
+
+            // Start animation (fade in, scale up, then fade out and remove)
+            emoji.style.opacity = '1';
+            emoji.style.transform = 'scale(1)';
+
+            setTimeout(() => {
+                emoji.style.opacity = '0';
+                emoji.style.transform = 'scale(1.5)';
+                // Remove the element after the transition is complete
+                setTimeout(() => {
+                    emoji.remove();
+                }, 500); 
+            }, 100); 
+        }
+
+        /**
+         * Clears the tap counter in Firestore.
+         */
+        clearButton.addEventListener('click', async () => {
+             if (!userDocRef || !db) {
+                return;
+            }
+            // Clear the count by setting it to 0
+            try {
+                await setDoc(userDocRef, { count: 0 }, { merge: false });
+                // Clear any visible emojis
+                tapArea.innerHTML = ''; 
+            } catch (error) {
+                console.error("Error clearing tap count:", error);
+            }
+        });
+
+
+        // Handle both mouse clicks and touch taps
+        tapArea.addEventListener('click', (e) => {
+            // Prevent button clicks from registering as taps on the area below
+            if (e.target.id === 'tapArea') {
+                handleTap(e);
+            }
+        });
+        
+        tapArea.addEventListener('touchstart', (e) => {
+            // Prevent multiple rapid taps/clicks
+            e.preventDefault(); 
+            // Use the first touch point's coordinates
+            if (e.touches.length > 0) {
+                const touch = e.touches[0];
+                handleTap({ clientX: touch.clientX, clientY: touch.clientY });
+            }
+        });
+
+
+        // --- Start the app ---
+        window.onload = initializeFirebase;
+
+    </script>
+</body>
+</html>
