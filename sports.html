@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Emoji Sports Scoreboard</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom styles for a modern, energetic sports theme */
+        .sports-bg {
+            background-color: #f7f9fc; /* Off-white/light gray background */
+            min-height: 100vh;
+            font-family: 'Inter', sans-serif;
+        }
+        .scoreboard-card {
+            box-shadow: 0 12px 25px rgba(0, 0, 0, 0.15);
+            border: 1px solid #e2e8f0;
+            transition: all 0.3s ease;
+        }
+        .score-item {
+            /* Now uses a CSS variable for dynamic coloring injected via JS */
+            border-left: 5px solid var(--league-color, #4f46e5); 
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        .score-item:hover {
+            background-color: #f3f4f6;
+            transform: scale(1.01);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+        }
+        /* Loading animation for modern look */
+        .loading-dots {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 40px;
+        }
+        .dot {
+            width: 12px;
+            height: 12px;
+            margin: 0 6px;
+            border-radius: 50%;
+            background-color: #f97316; /* Orange color for action */
+            animation: bounce 0.6s infinite alternate;
+        }
+        .dot:nth-child(2) { animation-delay: 0.2s; }
+        .dot:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes bounce {
+            from { transform: translateY(0); }
+            to { transform: translateY(-10px); }
+        }
+        
+        /* Ensure date input size is good on mobile */
+        #dateInput {
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            cursor: pointer;
+        }
+
+        /* Styling for the new collapsible sections */
+        .league-details {
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem; /* rounded-xl equivalent */
+            overflow: hidden; /* Contains children border radius */
+        }
+        .league-summary {
+            list-style: none; /* Hide default marker */
+            cursor: pointer;
+            padding: 0.75rem 1rem;
+            font-weight: 600;
+            outline: none;
+            transition: background-color 0.2s;
+            position: relative;
+        }
+        .league-summary:hover {
+            opacity: 0.95; /* Slight hover effect */
+        }
+        /* Custom chevron/indicator for summary, color driven by JS-injected CSS variable */
+        .league-summary::before {
+            content: "▶"; /* Right arrow */
+            margin-right: 0.5rem;
+            transition: transform 0.2s;
+            display: inline-block;
+            color: var(--summary-color, #4f46e5); 
+        }
+        details[open] > .league-summary::before {
+            content: "▼"; /* Down arrow */
+            transform: rotate(0deg); 
+        }
+    </style>
+</head>
+<body class="sports-bg">
+
+    <div id="app" class="p-4 flex justify-center items-start pt-6 md:pt-10">
+
+        <!-- Main Scoreboard Card -->
+        <div class="scoreboard-card bg-white w-full max-w-4xl rounded-xl p-4 md:p-8">
+
+            <div class="text-center mb-6 md:mb-8">
+                <span class="text-5xl block mb-2">🏆🏀🏈🏒⚾️</span>
+                <h1 class="text-3xl md:text-4xl font-extrabold text-indigo-700">Live Scoreboard</h1>
+                <p class="text-gray-500 mt-2 text-sm md:text-base">Real-time action for Pro and College sports (CFB, CBB, NBA, NFL, NHL, MLB).</p>
+            </div>
+
+            <!-- Date Picker and Navigation Buttons -->
+            <div class="flex items-center justify-center mb-6 space-x-2">
+                <button id="prevDayButton" class="p-2 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg shadow-md transition duration-150 ease-in-out">
+                    ◀️
+                </button>
+                <label for="dateInput" class="sr-only">Select Date</label>
+                <input type="date" id="dateInput" class="p-3 border-2 border-indigo-300 rounded-xl text-center font-bold text-lg text-gray-700 focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 ease-in-out w-full max-w-[14rem] shadow-md" />
+                <button id="nextDayButton" class="p-2 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg shadow-md transition duration-150 ease-in-out">
+                    ▶️
+                </button>
+            </div>
+            
+            <!-- Search Input -->
+            <div class="mb-6">
+                <label for="searchInput" class="sr-only">Search Team</label>
+                <input type="text" id="searchInput" placeholder="🔍 Search team name (e.g., Lakers, Ohio St)" class="w-full p-3 border-2 border-gray-300 rounded-xl text-gray-700 focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 ease-in-out shadow-md" />
+            </div>
+
+            <div id="loadingIndicator" class="hidden my-4">
+                <div class="loading-dots">
+                    <div class="dot"></div>
+                    <div class="dot"></div>
+                    <div class="dot"></div>
+                </div>
+            </div>
+
+            <!-- Results Display Area -->
+            <div id="resultsContainer">
+                <p id="initialMessage" class="text-center text-gray-500 p-6 bg-yellow-50 rounded-lg border border-yellow-200">
+                    👆 Choose a date or use the arrows to see the day's matchups!
+                </p>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        const dateInput = document.getElementById('dateInput');
+        const searchInput = document.getElementById('searchInput'); // New search input
+        const resultsContainer = document.getElementById('resultsContainer');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const prevDayButton = document.getElementById('prevDayButton');
+        const nextDayButton = document.getElementById('nextDayButton');
+        
+        // Global State to hold the fetched data
+        let currentEvents = []; 
+
+        // Set default date to today
+        function setInitialDate() {
+             dateInput.value = new Date().toISOString().split('T')[0];
+        }
+
+        // ESPN Scoreboard API Endpoints
+        const ESPN_ENDPOINTS = {
+            'NBA': 'https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard',
+            'NFL': 'https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard',
+            'NHL': 'https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard',
+            'MLB': 'https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/scoreboard',
+            // Added College Sports
+            'NCAAF': 'https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard',
+            'NCAAM': 'https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard'
+        };
+
+        // League-specific theme colors for league headers (fallback for game card border if team color is missing)
+        const LEAGUE_THEMES = {
+            'NBA': { color: '#1D428A', text: 'text-blue-700', bg: 'bg-blue-100/70' }, 
+            'NFL': { color: '#002244', text: 'text-gray-900', bg: 'bg-gray-200/70' },
+            'NHL': { color: '#C8102E', text: 'text-red-700', bg: 'bg-red-100/70' },  
+            'MLB': { color: '#002D56', text: 'text-blue-900', bg: 'bg-blue-100/70' },
+            // College Themes
+            'NCAAF': { color: '#800000', text: 'text-red-800', bg: 'bg-red-200/70' }, // Maroon/Deep Red for CFB
+            'NCAAM': { color: '#FF7F00', text: 'text-yellow-800', bg: 'bg-yellow-100/70' } // Orange for CBB
+        };
+
+        // --- Utility Functions for UI and Error Handling ---
+
+        function setLoading(isLoading) {
+            // Disable inputs and buttons while loading
+            dateInput.disabled = isLoading;
+            searchInput.disabled = isLoading; // Disable search while loading
+            prevDayButton.disabled = isLoading;
+            nextDayButton.disabled = isLoading;
+            
+            if (isLoading) {
+                loadingIndicator.classList.remove('hidden');
+                resultsContainer.innerHTML = ''; // Clear previous results
+                currentEvents = []; // Clear data while loading new date
+            } else {
+                loadingIndicator.classList.add('hidden');
+            }
+        }
+
+        function displayMessage(message, isError = false) {
+            resultsContainer.innerHTML = `
+                <div class="p-6 rounded-xl text-center ${isError ? 'bg-red-100 text-red-700 border border-red-300' : 'bg-blue-100 text-blue-700 border border-blue-300'}">
+                    <p class="font-semibold">${message}</p>
+                </div>
+            `;
+        }
+        
+        /**
+         * Changes the current date in the input field by a specified number of days.
+         * @param {number} days - The number of days to add (positive) or subtract (negative).
+         */
+        function changeDate(days) {
+            const currentDate = new Date(dateInput.value);
+            // setDate handles month/year rollovers automatically
+            currentDate.setDate(currentDate.getDate() + days);
+            
+            // Format back to YYYY-MM-DD and update the input
+            dateInput.value = currentDate.toISOString().split('T')[0];
+            
+            // Clear search when changing day
+            searchInput.value = '';
+
+            // Trigger fetch for the new date
+            fetchScores();
+        }
+
+        // --- Core API Logic (ESPN Fetch) ---
+
+        /**
+         * Parses the date from YYYY-MM-DD to YYYYMMDD format required by ESPN API.
+         */
+        function formatESPNDate(dateString) {
+            return dateString.replace(/-/g, '');
+        }
+
+        /**
+         * Parses and normalizes a single ESPN event object.
+         */
+        function parseESPNEvent(event, leagueName) {
+            if (!event || !event.competitions || event.competitions.length === 0) return null;
+
+            const competition = event.competitions[0];
+            const competitors = competition.competitors || [];
+            const status = competition.status.type.detail || 'Upcoming';
+            const state = competition.status.type.state || 'pre';
+            
+            let homeTeam, awayTeam, homeScore = 0, awayScore = 0;
+            let homeAbbrev = '', awayAbbrev = '';
+            let homeColor = null, awayColor = null; 
+
+            for (const team of competitors) {
+                // ESPN color comes without the '#', add it here
+                const teamColor = team.team.color ? `#${team.team.color}` : null;
+
+                if (team.homeAway === 'home') {
+                    homeTeam = team.team.displayName;
+                    homeAbbrev = team.team.abbreviation;
+                    homeScore = parseInt(team.score) || 0;
+                    homeColor = teamColor; 
+                } else if (team.homeAway === 'away') {
+                    awayTeam = team.team.displayName;
+                    awayAbbrev = team.team.abbreviation;
+                    awayScore = parseInt(team.score) || 0;
+                    awayColor = teamColor; 
+                }
+            }
+
+            if (!homeTeam || !awayTeam) return null;
+
+            return {
+                league: leagueName,
+                homeTeam: homeTeam,
+                homeAbbrev: homeAbbrev,
+                awayTeam: awayTeam,
+                awayAbbrev: awayAbbrev,
+                homeScore: homeScore,
+                awayScore: awayScore,
+                homeColor: homeColor, 
+                awayColor: awayColor, 
+                status: status,
+                state: state // pre, in, post
+            };
+        }
+        
+        /**
+         * Fetches scores for a single league and parses the results.
+         */
+        async function fetchAndParseLeague(leagueName, espnDate) {
+            const endpoint = ESPN_ENDPOINTS[leagueName];
+            if (!endpoint) return [];
+
+            const url = `${endpoint}?dates=${espnDate}`;
+            
+            // Implement exponential backoff for API calls
+            const MAX_RETRIES = 3;
+            for (let i = 0; i < MAX_RETRIES; i++) {
+                try {
+                    const response = await fetch(url);
+                    if (!response.ok) {
+                        // Throw error to trigger retry if status is not 200-299
+                        if (response.status === 429 || response.status >= 500) {
+                             throw new Error('Server error or rate limit exceeded');
+                        }
+                        console.warn(`Failed to fetch ${leagueName} scores. Status: ${response.status}`);
+                        return [];
+                    }
+                    const data = await response.json();
+                    
+                    if (!data.events || !Array.isArray(data.events)) return [];
+    
+                    return data.events
+                        .map(event => parseESPNEvent(event, leagueName))
+                        .filter(game => game !== null);
+
+                } catch (error) {
+                    if (i < MAX_RETRIES - 1) {
+                        const delay = Math.pow(2, i) * 1000;
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                        continue; // Retry
+                    } else {
+                        console.error(`Error fetching or parsing ${leagueName} data after ${MAX_RETRIES} attempts:`, error);
+                        return []; // Final failure
+                    }
+                }
+            }
+        }
+
+        /**
+         * Orchestrates fetching scores for all major leagues.
+         */
+        async function fetchScores() {
+            const selectedDate = dateInput.value;
+            if (!selectedDate) {
+                displayMessage("🚨 Error: Please select a valid date.", true);
+                return;
+            }
+
+            setLoading(true);
+
+            const espnDate = formatESPNDate(selectedDate);
+            // Fetch all leagues defined in ESPN_ENDPOINTS
+            const leaguePromises = Object.keys(ESPN_ENDPOINTS).map(league => 
+                fetchAndParseLeague(league, espnDate)
+            );
+
+            try {
+                // Wait for all league fetches to complete
+                const results = await Promise.all(leaguePromises);
+                
+                // Flatten the array of arrays into a single list of games
+                const allGames = results.flat();
+                
+                // Store results globally and update the display via the filter handler
+                currentEvents = allGames;
+                updateDisplay();
+
+            } catch (error) {
+                console.error("Scoreboard Orchestration Error:", error);
+                displayMessage(`🔥 Network Issue: Could not load scores from ESPN.`, true);
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        // --- Filtering and Rendering Logic ---
+        
+        /**
+         * Filters the currentEvents based on the search input and renders the results.
+         */
+        function updateDisplay() {
+            const selectedDate = dateInput.value;
+            const searchTerm = searchInput.value.trim().toLowerCase();
+            
+            if (currentEvents.length === 0) {
+                 displayMessage(`😴 No games scheduled for ${new Date(selectedDate).toDateString()}. Check a different date!`, false);
+                 return;
+            }
+
+            const filteredEvents = currentEvents.filter(game => {
+                if (!searchTerm) return true; // Show all if search is empty
+
+                // Check against team name, abbreviation, or league name
+                return game.homeTeam.toLowerCase().includes(searchTerm) ||
+                       game.awayTeam.toLowerCase().includes(searchTerm) ||
+                       game.homeAbbrev.toLowerCase().includes(searchTerm) ||
+                       game.awayAbbrev.toLowerCase().includes(searchTerm);
+            });
+            
+            if (filteredEvents.length === 0) {
+                displayMessage(`🤷 No games found matching "${searchInput.value}". Try a different search term.`, false);
+                return;
+            }
+
+            renderResults(filteredEvents, selectedDate);
+        }
+
+
+        function getSportEmoji(sportLabel) {
+            const emojis = {
+                'NBA': '🏀 NBA',
+                'NHL': '🏒 NHL',
+                'NFL': '🏈 NFL',
+                'MLB': '⚾️ MLB',
+                'NCAAF': '🏆 CFB', // College Football
+                'NCAAM': '⛹️ CBB'  // College Basketball
+            };
+            return emojis[sportLabel] || '🏅 SPORTS';
+        }
+
+        function renderResults(events, date) {
+            // Group events by league name (which is clean: NBA, NFL, etc.)
+            const groupedEvents = events.reduce((acc, game) => {
+                if (!acc[game.league]) {
+                    acc[game.league] = [];
+                }
+                acc[game.league].push(game);
+                return acc;
+            }, {});
+
+            let html = `<h2 class="text-2xl font-bold text-indigo-700 mb-6 border-b-2 border-indigo-200 pb-2">📅 ${new Date(date).toDateString()} Scoreboard</h2>`;
+
+            for (const [sportLabel, games] of Object.entries(groupedEvents)) {
+                
+                const leagueTheme = LEAGUE_THEMES[sportLabel] || { color: '#4f46e5', text: 'text-indigo-700', bg: 'bg-indigo-100/50' };
+                // Use CSS variable to set the chevron color for the summary
+                const summaryColorStyle = `--summary-color: ${leagueTheme.color};`;
+
+                // Start the collapsible details section. Removed 'open' attribute.
+                html += `
+                    <div class="mb-4">
+                        <details class="league-details bg-white shadow-md"> 
+                            <summary class="league-summary text-xl font-semibold ${leagueTheme.text} ${leagueTheme.bg}" style="${summaryColorStyle}">
+                                ${getSportEmoji(sportLabel)} (${games.length} Games)
+                            </summary>
+                            <div class="space-y-3 p-4 bg-white border-t border-gray-100">
+                `;
+
+                games.forEach(game => {
+                    let scoreDisplay = 'TBD';
+                    let statusClass = 'text-gray-500';
+                    let statusEmoji = '⌚️';
+                    let statusText = game.status; 
+
+                    // Use Home Team's color for the border, fall back to league theme
+                    const teamBorderColor = game.homeColor || leagueTheme.color;
+                    const borderColorStyle = `--league-color: ${teamBorderColor};`;
+
+                    if (game.state === 'post') {
+                        // Game is final
+                        const homeScore = game.homeScore;
+                        const awayScore = game.awayScore;
+                        scoreDisplay = `<span class="font-bold text-lg">${homeScore}</span> - <span class="font-bold text-lg">${awayScore}</span>`;
+                        statusClass = 'text-green-600';
+                        statusEmoji = '✅';
+                        
+                        // Highlight winner
+                        if (homeScore > awayScore) {
+                             scoreDisplay = `<span class="font-extrabold text-indigo-600">${homeScore}</span> vs <span class="font-semibold">${awayScore}</span>`;
+                             statusText = `${game.homeAbbrev} WINS`;
+                        } else if (awayScore > homeScore) {
+                            scoreDisplay = `<span class="font-semibold">${homeScore} vs </span><span class="font-extrabold text-indigo-600">${awayScore}</span>`;
+                            statusText = `${game.awayAbbrev} WINS`;
+                        } else {
+                            statusText = 'FINAL (TIE)';
+                        }
+
+                    } else if (game.state === 'in') {
+                         // Game is in progress
+                         scoreDisplay = `${game.homeScore} vs ${game.awayScore}`;
+                         statusClass = 'text-red-500 animate-pulse';
+                         statusEmoji = '🔥';
+                    }
+                    
+                    if (statusText.toLowerCase().includes('postponed') || statusText.toLowerCase().includes('cancelled')) {
+                        scoreDisplay = '—';
+                        statusClass = 'text-yellow-600';
+                        statusEmoji = '❌';
+                        statusText = statusText.toUpperCase();
+                    }
+
+                    html += `
+                        <div class="score-item p-4 bg-white rounded-lg shadow-sm flex flex-col md:flex-row justify-between items-center" style="${borderColorStyle}">
+                            
+                            <div class="flex-1 min-w-0 mb-2 md:mb-0">
+                                <div class="font-semibold text-gray-800 text-lg text-center md:text-left truncate">
+                                    ${game.awayTeam} (${game.awayAbbrev}) <span class="text-gray-400 font-normal mx-1">@</span> ${game.homeTeam} (${game.homeAbbrev})
+                                </div>
+                            </div>
+                            
+                            <div class="text-center md:text-right ml-0 md:ml-4 flex flex-col items-center md:items-end w-full md:w-auto">
+                                <div class="text-2xl font-extrabold text-gray-800 mb-1">${scoreDisplay}</div>
+                                <div class="text-xs font-bold ${statusClass} flex items-center">
+                                    ${statusEmoji} <span class="ml-1">${statusText.toUpperCase()}</span>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                html += `
+                            </div>
+                        </details>
+                    </div>
+                `;
+            }
+
+            resultsContainer.innerHTML = html;
+        }
+
+        // --- Initialization and Event Listeners ---
+        
+        // 1. Initial Load: Set today's date and fetch scores
+        setInitialDate();
+        fetchScores();
+        
+        // 2. Auto-fetch when the date changes
+        dateInput.addEventListener('change', fetchScores);
+        
+        // 3. Day Navigation Listeners
+        prevDayButton.addEventListener('click', () => changeDate(-1));
+        nextDayButton.addEventListener('click', () => changeDate(1));
+        
+        // 4. New: Real-time filtering when typing in the search box
+        searchInput.addEventListener('input', updateDisplay);
+        
+    </script>
+
+</body>
+</html>
