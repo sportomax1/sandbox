@@ -1,0 +1,564 @@
+import React, { useState, useEffect, useMemo } from 'react';
+import { CloudRain, Snowflake, Calendar as CalendarIcon, MapPin, Droplets, Thermometer, Wind, ChevronDown, Sunrise, Sunset, Clock } from 'lucide-react';
+
+// --- Configuration & Helpers ---
+
+const LOCATIONS = [
+  { name: 'Parker, CO', lat: 39.5186, lon: -104.7614 },
+  { name: 'Uehling, NE', lat: 41.7336, lon: -96.5028 },
+  { name: 'San Diego, CA', lat: 32.7157, lon: -117.1611 },
+  { name: 'Chicago, IL', lat: 41.8781, lon: -87.6298 },
+  { name: 'Rochester, NY', lat: 43.1566, lon: -77.6088 },
+  { name: 'Clayton, NY', lat: 44.2395, lon: -76.0858 },
+];
+
+const DAYS_OF_WEEK = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+// Generate years from 2000 to next year
+const currentYear = new Date().getFullYear();
+const YEARS = Array.from({ length: currentYear - 2000 + 2 }, (_, i) => currentYear + 1 - i);
+
+// Helper to format dates for API (YYYY-MM-DD)
+const formatDateAPI = (date) => {
+  return date.toISOString().split('T')[0];
+};
+
+// Helper to format ISO time strings to 'h:mm AM/PM'
+const formatTime = (isoString) => {
+  if (!isoString || !isoString.includes('T')) return 'N/A';
+  const date = new Date(isoString);
+  return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+};
+
+// Helper to format duration in seconds to 'Hh Mm'
+const formatDuration = (seconds) => {
+  if (typeof seconds !== 'number' || seconds < 0) return 'N/A';
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  return `${hours}h ${minutes}m`;
+};
+
+// --- Components ---
+
+export default function App() {
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [location, setLocation] = useState(LOCATIONS[0]);
+  const [weatherData, setWeatherData] = useState({});
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  // Derived state for calendar generation
+  const year = currentDate.getFullYear();
+  const month = currentDate.getMonth();
+  
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const firstDayOfMonth = new Date(year, month, 1).getDay();
+
+  // --- Data Fetching ---
+
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      setError(null);
+      
+      try {
+        const startDate = new Date(year, month, 1);
+        const endDate = new Date(year, month + 1, 0); 
+
+        const startStr = formatDateAPI(startDate);
+        const endStr = formatDateAPI(endDate);
+        
+        let url = '';
+        const tenDaysAgo = new Date();
+        tenDaysAgo.setDate(tenDaysAgo.getDate() - 10);
+        
+        const isHistorical = endDate < tenDaysAgo;
+        
+        // Params for imperial units, including sun/daylight data
+        const params = `&daily=precipitation_sum,snowfall_sum,temperature_2m_max,temperature_2m_min,wind_speed_10m_max,sunrise,sunset,daylight_duration&temperature_unit=fahrenheit&precipitation_unit=inch&wind_speed_unit=mph&timezone=auto`;
+
+        if (isHistorical) {
+             url = `https://archive-api.open-meteo.com/v1/archive?latitude=${location.lat}&longitude=${location.lon}&start_date=${startStr}&end_date=${endStr}${params}`;
+        } else {
+             url = `https://api.open-meteo.com/v1/forecast?latitude=${location.lat}&longitude=${location.lon}&start_date=${startStr}&end_date=${endStr}${params}`;
+        }
+
+        const response = await fetch(url);
+        if (!response.ok) throw new Error('Weather data unavailable');
+        const data = await response.json();
+
+        const processed = {};
+        if (data.daily && data.daily.time) {
+          data.daily.time.forEach((time, index) => {
+            processed[time] = {
+              precipitation: data.daily.precipitation_sum[index],
+              snowfall: data.daily.snowfall_sum[index],
+              tempMax: data.daily.temperature_2m_max[index],
+              tempMin: data.daily.temperature_2m_min[index],
+              windSpeed: data.daily.wind_speed_10m_max[index],
+              sunrise: data.daily.sunrise?.[index],
+              sunset: data.daily.sunset?.[index],
+              daylightDuration: data.daily.daylight_duration?.[index],
+            };
+          });
+        }
+        setWeatherData(processed);
+
+      } catch (err) {
+        console.error(err);
+        setError('Could not load weather data.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [year, month, location]);
+
+  // --- Monthly Summary/Trend Calculation (useMemo for efficiency) ---
+  const monthlySummary = useMemo(() => {
+      const dates = Object.keys(weatherData);
+      if (dates.length === 0) return null;
+
+      let totalSnow = 0;
+      let totalRain = 0;
+      let maxTempsSum = 0;
+      let minTempsSum = 0;
+      let count = 0;
+      
+      dates.forEach(dateStr => {
+          const data = weatherData[dateStr];
+          const date = new Date(dateStr);
+          
+          if (date.getFullYear() === year && date.getMonth() === month) {
+              if (data.snowfall !== null) totalSnow += data.snowfall;
+              if (data.precipitation !== null) totalRain += data.precipitation;
+              if (data.tempMax !== null) maxTempsSum += data.tempMax;
+              if (data.tempMin !== null) minTempsSum += data.tempMin;
+              count++;
+          }
+      });
+
+      if (count === 0) return null;
+
+      return {
+          totalSnow: totalSnow.toFixed(2),
+          totalRain: totalRain.toFixed(2),
+          avgMaxTemp: (maxTempsSum / count).toFixed(1),
+          avgMinTemp: (minTempsSum / count).toFixed(1),
+          count,
+      };
+  }, [weatherData, year, month]);
+
+
+  // --- Handlers ---
+
+  const handleMonthChange = (e) => {
+    const newMonth = parseInt(e.target.value);
+    setCurrentDate(new Date(year, newMonth, 1));
+  };
+
+  const handleYearChange = (e) => {
+    const newYear = parseInt(e.target.value);
+    setCurrentDate(new Date(newYear, month, 1));
+  };
+
+  const jumpToToday = () => {
+    const now = new Date();
+    setCurrentDate(now);
+    setSelectedDate(now);
+  };
+
+  const handleDateClick = (day) => {
+    const newDate = new Date(year, month, day);
+    setSelectedDate(newDate);
+  };
+
+  // --- Render Helpers ---
+
+  // Generate calendar grid
+  const calendarCells = [];
+  for (let i = 0; i < firstDayOfMonth; i++) {
+    calendarCells.push(<div key={`empty-${i}`} className="h-24 md:h-32"></div>);
+  }
+  
+  for (let day = 1; day <= daysInMonth; day++) {
+    const dateStr = formatDateAPI(new Date(year, month, day));
+    const data = weatherData[dateStr];
+    const isSelected = selectedDate.getDate() === day && selectedDate.getMonth() === month && selectedDate.getFullYear() === year;
+    const isToday = new Date().getDate() === day && new Date().getMonth() === month && new Date().getFullYear() === year;
+
+    let precipIntensity = 0; 
+    let isSnow = false;
+
+    if (data) {
+      if (data.snowfall > 0) {
+        isSnow = true;
+        if (data.snowfall > 2.0) precipIntensity = 3;
+        else if (data.snowfall > 0.5) precipIntensity = 2;
+        else precipIntensity = 1;
+      } else if (data.precipitation > 0) {
+        if (data.precipitation > 0.5) precipIntensity = 3;
+        else if (data.precipitation > 0.1) precipIntensity = 2;
+        else precipIntensity = 1;
+      }
+    }
+
+    calendarCells.push(
+      <div 
+        key={day} 
+        onClick={() => handleDateClick(day)}
+        className={`
+          relative h-24 md:h-32 border-t border-gray-100 p-1 md:p-2 cursor-pointer transition-colors duration-200 group
+          ${isSelected ? 'bg-gray-50' : 'hover:bg-gray-50/50'}
+        `}
+      >
+        <div className="flex justify-between items-start">
+          <span 
+            className={`
+              text-sm font-medium w-7 h-7 flex items-center justify-center rounded-full
+              ${isToday ? 'bg-red-500 text-white' : isSelected ? 'bg-black text-white' : 'text-gray-700 group-hover:text-black'}
+            `}
+          >
+            {day}
+          </span>
+          
+          {/* Calendar cell Wind/Forecast indicator */}
+          {data && data.windSpeed > 10 && (
+            <div className="flex items-center gap-0.5 text-[10px] text-gray-400 font-medium">
+               <Wind size={10} />
+               {Math.round(data.windSpeed)}
+            </div>
+          )}
+        </div>
+
+        <div className="mt-2 md:mt-3 flex flex-col gap-1">
+          {data && (data.precipitation > 0 || data.snowfall > 0) && (
+            <div className={`
+              text-xs px-2 py-1 rounded-md font-medium flex items-center gap-1 w-full overflow-hidden
+              ${isSnow 
+                ? 'bg-cyan-100 text-cyan-800' 
+                : 'bg-blue-100 text-blue-800'}
+            `}>
+              {isSnow ? <Snowflake size={12} className="shrink-0" /> : <CloudRain size={12} className="shrink-0" />}
+              <span className="truncate hidden md:inline">
+                {isSnow ? `${data.snowfall} in` : `${data.precipitation} in`}
+              </span>
+              <span className="md:hidden">
+                {isSnow ? data.snowfall : data.precipitation}
+              </span>
+            </div>
+          )}
+          
+          {data && (
+            <div className="hidden md:flex items-center gap-1 text-[10px] text-gray-400 mt-1 pl-1">
+               <span className="font-medium text-gray-500">{Math.round(data.tempMax)}°</span>
+               <div className="h-1 w-8 bg-gray-200 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-orange-300" 
+                    style={{ width: `${Math.min(100, Math.max(0, ((data.tempMax - data.tempMin) / 40) * 100))}%` }} 
+                  />
+               </div>
+               <span>{Math.round(data.tempMin)}°</span>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  const selectedDateStr = formatDateAPI(selectedDate);
+  const selectedData = weatherData[selectedDateStr];
+
+  return (
+    <div className="min-h-screen bg-gray-50 text-gray-900 font-sans selection:bg-red-100 selection:text-red-900">
+      
+      {/* --- Header / Navigation --- */}
+      <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md border-b border-gray-200">
+        <div className="max-w-5xl mx-auto px-4 py-4">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            
+            {/* Title & Date Dropdowns */}
+            <div className="flex items-center gap-2">
+              
+              {/* Month Dropdown */}
+              <div className="relative">
+                <select 
+                  value={month} 
+                  onChange={handleMonthChange}
+                  className="appearance-none bg-gray-100 hover:bg-gray-200 text-gray-900 font-bold text-lg md:text-xl py-2 pl-4 pr-10 rounded-xl transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-black/5"
+                >
+                  {MONTHS.map((m, i) => (
+                    <option key={m} value={i}>{m}</option>
+                  ))}
+                </select>
+                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-500">
+                  <ChevronDown size={16} strokeWidth={3} />
+                </div>
+              </div>
+
+              {/* Year Dropdown */}
+              <div className="relative">
+                 <select 
+                  value={year} 
+                  onChange={handleYearChange}
+                  className="appearance-none bg-transparent hover:bg-gray-100 text-gray-500 font-medium text-lg md:text-xl py-2 pl-2 pr-8 rounded-xl transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-black/5"
+                >
+                  {YEARS.map((y) => (
+                    <option key={y} value={y}>{y}</option>
+                  ))}
+                </select>
+                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-400">
+                  <ChevronDown size={16} strokeWidth={3} />
+                </div>
+              </div>
+
+              <button onClick={jumpToToday} className="ml-2 px-3 py-1.5 text-xs font-semibold text-gray-600 bg-gray-50 hover:bg-gray-200 rounded-lg transition-all border border-gray-200">
+                Today
+              </button>
+            </div>
+
+            {/* Location Selector */}
+            <div className="relative group">
+               <div className="flex items-center gap-2 text-blue-600 bg-blue-50 hover:bg-blue-100 px-4 py-2 rounded-xl transition-colors cursor-pointer">
+                  <MapPin size={18} />
+                  <span className="font-medium">{location.name}</span>
+                  <ChevronDown size={14} />
+               </div>
+               <div className="absolute top-full right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden hidden group-hover:block animate-in fade-in slide-in-from-top-2">
+                 {LOCATIONS.map(loc => (
+                   <button
+                    key={loc.name}
+                    onClick={() => setLocation(loc)}
+                    className={`w-full text-left px-4 py-3 text-sm hover:bg-gray-50 flex items-center justify-between ${location.name === loc.name ? 'text-blue-600 bg-blue-50/50' : 'text-gray-700'}`}
+                   >
+                     {loc.name}
+                     {location.name === loc.name && <div className="w-2 h-2 rounded-full bg-blue-600"></div>}
+                   </button>
+                 ))}
+               </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      {/* --- Main Content --- */}
+      <main className="max-w-5xl mx-auto px-4 py-6 md:py-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
+        
+        {/* Calendar Section (2/3 width) */}
+        <div className="lg:col-span-2">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+            <div className="grid grid-cols-7 border-b border-gray-100 bg-gray-50/50">
+              {DAYS_OF_WEEK.map(day => (
+                <div key={day} className="py-3 text-center text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                  {day}
+                </div>
+              ))}
+            </div>
+            
+            <div className="grid grid-cols-7">
+              {loading && !weatherData[formatDateAPI(currentDate)] ? (
+                <div className="col-span-7 h-96 flex items-center justify-center text-gray-400 gap-2">
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-gray-400"></div>
+                  Loading Weather Data...
+                </div>
+              ) : (
+                calendarCells
+              )}
+            </div>
+          </div>
+          
+          <div className="mt-4 flex items-center gap-6 text-xs text-gray-500 px-2">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-cyan-400"></span> Snow
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-blue-400"></span> Rain
+            </div>
+             <div className="flex items-center gap-2">
+              <Wind size={12} className="text-gray-400"/> Wind &gt; 10 mph
+            </div>
+            <div className="flex-1 text-right">
+              Data from Open-Meteo
+            </div>
+          </div>
+        </div>
+
+        {/* Dashboard/Details Section (1/3 width) */}
+        <div className="lg:col-span-1">
+          <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 sticky top-24 space-y-6">
+            
+            {/* --- Monthly Summary / Trends Card --- */}
+            <div className="border-b border-gray-100 pb-4">
+              <h2 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">
+                <CalendarIcon size={18} className="text-indigo-500" />
+                {MONTHS[month]} Summary
+              </h2>
+              {monthlySummary ? (
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div className="bg-gray-50 p-3 rounded-lg flex flex-col items-start">
+                    <span className="text-xs text-gray-500 uppercase font-medium">Avg. High</span>
+                    <span className="font-bold text-lg text-red-500">{monthlySummary.avgMaxTemp}°F</span>
+                  </div>
+                   <div className="bg-gray-50 p-3 rounded-lg flex flex-col items-start">
+                    <span className="text-xs text-gray-500 uppercase font-medium">Avg. Low</span>
+                    <span className="font-bold text-lg text-blue-500">{monthlySummary.avgMinTemp}°F</span>
+                  </div>
+                  <div className="bg-gray-50 p-3 rounded-lg flex flex-col items-start">
+                    <span className="text-xs text-gray-500 uppercase font-medium">Total Snow</span>
+                    <span className="font-bold text-lg text-cyan-600">{monthlySummary.totalSnow} in</span>
+                  </div>
+                  <div className="bg-gray-50 p-3 rounded-lg flex flex-col items-start">
+                    <span className="text-xs text-gray-500 uppercase font-medium">Total Rain</span>
+                    <span className="font-bold text-lg text-blue-600">{monthlySummary.totalRain} in</span>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-sm text-gray-500 p-4 bg-gray-50 rounded-lg">Calculating trends for this month...</div>
+              )}
+            </div>
+            
+            {/* --- Daily Details Header --- */}
+            <h2 className="text-gray-400 text-xs font-bold uppercase tracking-widest mb-1">
+              {selectedDate.toLocaleDateString('en-US', { weekday: 'long' })}
+            </h2>
+            <div className="text-3xl font-bold text-gray-900 mb-6">
+              {selectedDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}
+            </div>
+
+            {loading ? (
+               <div className="h-40 flex items-center justify-center text-gray-400">Fetching details...</div>
+            ) : !selectedData ? (
+               <div className="h-40 flex flex-col items-center justify-center text-gray-400 bg-gray-50 rounded-xl border-2 border-dashed border-gray-100">
+                  <CalendarIcon size={32} className="mb-2 opacity-50"/>
+                  <span className="text-sm">No data available for this date</span>
+               </div>
+            ) : (
+              <div className="space-y-6">
+                
+                {/* Main Accumulation Card */}
+                <div className={`
+                  rounded-2xl p-6 text-white shadow-lg transition-all
+                  ${selectedData.snowfall > 0 
+                    ? 'bg-gradient-to-br from-cyan-500 to-blue-600' 
+                    : selectedData.precipitation > 0 
+                      ? 'bg-gradient-to-br from-blue-500 to-indigo-600'
+                      : 'bg-gradient-to-br from-gray-400 to-gray-500'
+                  }
+                `}>
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="opacity-80 text-sm font-medium mb-1">Total Accumulation</p>
+                      <div className="text-4xl font-bold tracking-tight">
+                        {selectedData.snowfall > 0 
+                          ? `${selectedData.snowfall} in`
+                          : selectedData.precipitation > 0 
+                            ? `${selectedData.precipitation} in`
+                            : '0 in'
+                        }
+                      </div>
+                    </div>
+                    <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
+                      {selectedData.snowfall > 0 
+                        ? <Snowflake size={24} className="text-white" /> 
+                        : selectedData.precipitation > 0 
+                          ? <CloudRain size={24} className="text-white" />
+                          : <CalendarIcon size={24} className="text-white" />
+                      }
+                    </div>
+                  </div>
+                  <div className="mt-4 pt-4 border-t border-white/20 text-sm font-medium flex gap-4">
+                     <span>{selectedData.snowfall > 0 ? 'Fresh Powder' : selectedData.precipitation > 0 ? 'Rainfall' : 'Dry Day'}</span>
+                  </div>
+                </div>
+                
+                {/* --- Sun and Daylight Card (NEW) --- */}
+                <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+                    <h3 className="text-xs font-bold uppercase text-gray-400 mb-3">Sun & Daylight</h3>
+                    <div className="space-y-2">
+                        <div className="flex items-center justify-between text-sm">
+                            <div className="flex items-center gap-2 text-gray-700">
+                                <Sunrise size={16} className="text-orange-400" />
+                                <span>Sunrise</span>
+                            </div>
+                            <span className="font-semibold text-gray-900">{formatTime(selectedData.sunrise)}</span>
+                        </div>
+                        <div className="flex items-center justify-between text-sm">
+                            <div className="flex items-center gap-2 text-gray-700">
+                                <Sunset size={16} className="text-orange-600" />
+                                <span>Sunset</span>
+                            </div>
+                            <span className="font-semibold text-gray-900">{formatTime(selectedData.sunset)}</span>
+                        </div>
+                        <div className="flex items-center justify-between text-sm border-t pt-2 mt-2">
+                            <div className="flex items-center gap-2 text-gray-700">
+                                <Clock size={16} className="text-indigo-500" />
+                                <span>Total Daylight</span>
+                            </div>
+                            <span className="font-semibold text-gray-900">{formatDuration(selectedData.daylightDuration)}</span>
+                        </div>
+                    </div>
+                </div>
+
+
+                {/* Secondary Metrics */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+                    <div className="flex items-center gap-2 text-gray-400 mb-2">
+                       <Thermometer size={16} />
+                       <span className="text-xs font-bold uppercase">Max Temp</span>
+                    </div>
+                    <div className="text-xl font-bold text-gray-900">{selectedData.tempMax}°F</div>
+                  </div>
+                  <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+                    <div className="flex items-center gap-2 text-gray-400 mb-2">
+                       <Thermometer size={16} />
+                       <span className="text-xs font-bold uppercase">Min Temp</span>
+                    </div>
+                    <div className="text-xl font-bold text-gray-900">{selectedData.tempMin}°F</div>
+                  </div>
+                  <div className="col-span-2 bg-gray-50 rounded-xl p-4 border border-gray-100">
+                    <div className="flex items-center gap-2 text-gray-400 mb-2">
+                       <Wind size={16} />
+                       <span className="text-xs font-bold uppercase">Max Wind Speed</span>
+                    </div>
+                    <div className="text-xl font-bold text-gray-900">{selectedData.windSpeed} mph</div>
+                  </div>
+                </div>
+
+                {/* Additional Stats */}
+                <div className="space-y-3">
+                  <h3 className="text-sm font-bold text-gray-900">Precipitation Breakdown</h3>
+                  <div className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 transition-colors">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-blue-100 text-blue-600 rounded-md">
+                        <Droplets size={18} />
+                      </div>
+                      <span className="text-sm font-medium text-gray-700">Rain (Liquid)</span>
+                    </div>
+                    <span className="font-bold text-gray-900">{selectedData.precipitation} in</span>
+                  </div>
+                  
+                  <div className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 transition-colors">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-cyan-100 text-cyan-600 rounded-md">
+                        <Snowflake size={18} />
+                      </div>
+                      <span className="text-sm font-medium text-gray-700">Snowfall</span>
+                    </div>
+                    <span className="font-bold text-gray-900">{selectedData.snowfall} in</span>
+                  </div>
+                </div>
+
+              </div>
+            )}
+          </div>
+        </div>
+
+      </main>
+    </div>
+  );
+}
